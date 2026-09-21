@@ -1,7 +1,7 @@
 # AI Worker — ค่าตั้งค่าสำหรับ prototype (line counting)
 # รัน: python -m src.main   (หรือ --config other.yaml เพื่อใช้ไฟล์อื่น)
 
-video: data/input_videos/event-1.mp4
+video: data/input_videos/traffic-5.mp4
 model: data/weights/yolov8s.pt
 camera_id: cam-chalongkrung-01
 
@@ -34,23 +34,35 @@ traffic_state:
 #    occupancy 0.20-2.76 / flow 0.0-42.4 ซึ่ง busy_occupancy=3.0 เฉียดมาก (ห่างแค่ 0.24)
 #    ถ่ายคลิปรถติดมาวัดแล้วค่อยตั้งค่าใหม่ให้แยก 2 กลุ่มได้ชัดกว่านี้
 
+zones:
+  # - name: in
+  #   expectedDirection: toward
+  #   polygon: [[2181, 1575], [3300, 1551], [2625, 1038], [2052, 1053]]
+  #   line: [[2109, 1272], [2967, 1287]]
+  #   occupancyPolygon: [[2190, 1554], [3330, 1563], [2307, 798], [1986, 810]]
+  # - name: out
+  #   expectedDirection: away
+  #   polygon: [[1818, 1524], [1863, 981], [1353, 954], [723, 1485]]
+  #   line: [[1197, 1077], [1848, 1080]]
+  #   occupancyPolygon: [[1833, 1545], [1890, 762], [1584, 747], [702, 1512]] 
+  #   # -----------traffic-1------------
+
+
 # zones:
 #   - name: in
 #     expectedDirection: toward
-#     polygon: [[2181, 1575], [3300, 1551], [2625, 1038], [2052, 1053]]
-#     line: [[2109, 1272], [2967, 1287]]
-#     occupancyPolygon: [[2190, 1554], [3330, 1563], [2307, 798], [1986, 810]]
-#   - name: out
-#     expectedDirection: away
-#     polygon: [[1818, 1524], [1863, 981], [1353, 954], [723, 1485]]
-#     line: [[1197, 1077], [1848, 1080]]
-#     occupancyPolygon: [[1833, 1545], [1890, 762], [1584, 747], [702, 1512]] 
-#     -----------traffic-1------------
-
+#     polygon: [[322, 1023], [1377, 1026], [1048, 418], [681, 424]]
+#     line: [[322, 796], [1377, 810]]
+#     occupancyPolygon: [[1377, 1042], [1004, 315], [741, 315], [314, 1054]]
 
 zones:
   - name: in
     expectedDirection: toward
-    polygon: [[322, 1023], [1377, 1026], [1048, 418], [681, 424]]
-    line: [[322, 796], [1377, 810]]
-    occupancyPolygon: [[1377, 1042], [1004, 315], [741, 315], [314, 1054]]
+    polygon: [[2172, 1530], [3333, 1563], [2463, 903], [2013, 909]]
+    line: [[3105, 1305], [2118, 1287]]
+    occupancyPolygon: [[2178, 1566], [3369, 1608], [2325, 813], [1986, 792]]
+  - name: out
+    expectedDirection: away
+    polygon: [[1827, 1551], [1875, 924], [1374, 918], [681, 1536]]
+    line: [[1131, 1110], [1854, 1116]]
+    occupancyPolygon: [[1824, 1518], [1884, 792], [1527, 789], [705, 1503]]
