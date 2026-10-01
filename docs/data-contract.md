@@ -5,7 +5,7 @@
 > A breaking change here breaks all 3 modules simultaneously.
 
 > Last reviewed: 2026-09-02
-> Schema version: `1.4.0`
+> Schema version: `1.5.0`
 
 ---
 
@@ -211,12 +211,27 @@ spawn-event = รถ 1 คัน ส่วน traffic-state = สภาพรว
   "windowStartSec": 20.0,
   "windowEndSec": 30.0,
   "zones": {
-    "in":  { "occupancy": 2.83, "vehicleFlowRate": 30.0, "motorcycleFlowRate": 12.0 },
-    "out": { "occupancy": 9.50, "vehicleFlowRate": 0.6,  "motorcycleFlowRate": 24.0 }
+    "in":  { "occupancy": 2.83, "vehicleFlowRate": 30.0, "motorcycleFlowRate": 12.0,
+             "trafficState": "normal" },
+    "out": { "occupancy": 9.50, "vehicleFlowRate": 0.6,  "motorcycleFlowRate": 24.0,
+             "trafficState": "standstill" }
   },
   "trafficState": "standstill"
 }
 ```
+
+### ทำไมต้องมีคำตัดสินรายโซน (อย่ายุบเหลือค่าเดียว)
+
+ถนน 2 ฝั่ง**ติดไม่พร้อมกัน** ขาเข้าอาจโล่งสนิทขณะขาออกติดแน่น การมี `trafficState`
+ตัวเดียวระดับบนสุด (= โซนที่แย่ที่สุด) จะทำให้ Unity วาดถนนทั้งเส้นเป็นรถติด
+ทั้งที่ฝั่งหนึ่งวิ่งได้ปกติ
+
+วัดกับคลิปจริง `event-2` (2026-09-24): **5 จาก 10 หน้าต่าง (50%) สองฝั่งอยู่คนละสถานะ**
+เช่นช่วง 120–140s ขาเข้า occupancy = 0.73 (`normal`) แต่ขาออก occupancy = 4.21 กับ
+flow = 0 (`standstill`) — ค่ารวมบอก `standstill` ทั้งเส้น ข้อมูลของขาเข้าหายไปทั้งหมด
+
+`trafficState` ระดับบนสุด**ยังอยู่** ใช้เป็นพาดหัว/สรุปภาพรวม ส่วน `zones.*.trafficState`
+ใช้เมื่อต้องรู้ว่าฝั่งไหนมีปัญหา — **ใช้คู่กัน ไม่ใช่แทนกัน**
 
 ### Field Reference
 
@@ -231,11 +246,15 @@ spawn-event = รถ 1 คัน ส่วน traffic-state = สภาพรว
 | `zones.*.occupancy` | `number` | ✅ | จำนวนรถในโซนเฉลี่ยต่อเฟรม = **ความหนาแน่น** (≥ 0) |
 | `zones.*.vehicleFlowRate` | `number` | ✅ | `car`+`truck`+`bus` ต่อนาที ที่ข้ามเส้นนับ = **อัตราการไหล** (≥ 0) — ค่าเดียวที่ใช้ตัดสิน |
 | `zones.*.motorcycleFlowRate` | `number` | ❌ | มอเตอร์ไซค์ต่อนาที (≥ 0) — ข้อมูลประกอบ **ไม่ใช้ตัดสิน** ถ้าไม่ส่งมาให้ถือเป็น `0` |
+| `zones.*.trafficState` | `string` | ❌ | คำตัดสินของ**ฝั่งถนนนี้โดยเฉพาะ** — enum ชุดเดียวกับระดับบนสุด ถ้าไม่ส่งมาให้ใช้ `trafficState` ระดับบนแทน (worker ก่อน 1.5.0) |
 | `trafficState` | `string` | ✅ | Enum: `"normal"` \| `"high_density"` \| `"slow_moving"` \| `"standstill"` |
 
 ### ตรรกะที่ AI Worker ใช้ตัดสิน `trafficState`
 
 "ขยับ" ตัดสินจาก `vehicleFlowRate` เท่านั้น — `motorcycleFlowRate` ไม่มีส่วนร่วม
+
+ตารางนี้ใช้ตัดสิน **ทีละโซน** ได้ `zones.*.trafficState` ส่วน `trafficState` ระดับบนสุด
+คือโซนที่แย่ที่สุด (ความรุนแรง `normal` < `high_density` < `slow_moving` < `standstill`)
 
 | | รถขยับได้ดี | รถขยับช้า | รถแทบไม่ขยับ |
 |---|---|---|---|
@@ -293,6 +312,7 @@ REJECT if: trafficState is not one of ["normal", "high_density", "slow_moving", 
 REJECT if: zones is missing, not an object, or empty
 REJECT if: any zone.occupancy or zone.vehicleFlowRate is negative or not finite
 REJECT if: any zone.motorcycleFlowRate is present but negative or not finite
+REJECT if: any zone.trafficState is present but not one of the 4 traffic states
 ```
 
 Payload passes validation silently. Failed validation logs a warning with
@@ -388,7 +408,7 @@ the rejection reason and the raw payload (truncated to 500 chars).
 - **MINOR** bump = new optional field added → backwards compatible
 - **PATCH** bump = description / comment clarification only
 
-Current version: `1.4.0`
+Current version: `1.5.0`
 
 ---
 
@@ -401,6 +421,8 @@ Current version: `1.4.0`
 | 1.2.0 | 2026-08-12 | unity envelope | Added §2c `spawn_vehicle` broadcast — wrapped + trimmed Unity-specific view alongside the unchanged `spawn` channel |
 | 1.3.0 | 2026-09-02 | traffic state | Added §2d `traffic-state` schema — per-window occupancy + flowRate and a `trafficState` verdict, broadcast on the new `traffic_state` channel |
 | 1.4.0 | 2026-09-02 | motorcycle flow | **Breaking within §2d:** `zones.*.flowRate` แยกเป็น `vehicleFlowRate` (บังคับ, ใช้ตัดสิน) + `motorcycleFlowRate` (ไม่บังคับ) เพราะมอเตอร์ไซค์มุดผ่านรถติดได้ ทำให้กลบสัญญาณ `standstill` — นับเป็น MINOR เพราะ §2d ยังเป็น `0.1-draft` และมีผู้ใช้แค่ ai-worker/backend ซึ่งแก้พร้อมกันในคอมมิตเดียว |
+
+| 1.5.0 | 2026-09-24 | per-zone verdict | เพิ่ม `zones.*.trafficState` — คำตัดสินแยกรายฝั่งถนน (field ใหม่ ไม่บังคับ = ไม่ breaking) `trafficState` ระดับบนสุดยังอยู่เหมือนเดิมในฐานะโซนที่แย่ที่สุด เหตุผล: วัดกับ `event-2` แล้วพบว่า **50% ของหน้าต่างสองฝั่งอยู่คนละสถานะ** เช่นขาเข้าโล่งสนิทขณะขาออกติดแน่น ค่ารวมค่าเดียวจึงทิ้งข้อมูลไปครึ่งหนึ่งและทำให้ Unity วาดถนนทั้งเส้นเป็นรถติดผิด ๆ |
 
 > Before modifying this schema, confirm with all module owners.
 > After modifying, bump the version, update the changelog above,

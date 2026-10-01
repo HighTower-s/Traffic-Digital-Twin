@@ -57,7 +57,7 @@ building storage for data that doesn't exist. See `docs/project-status.md`
 | `GET /api/stats` | Return current in-memory counters |
 | `POST /api/stats/reset` | Zero all counters (demo convenience) |
 | `GET /health` | Uptime check |
-| `GET /` | Serve live dev dashboard (`backend/src/view/index.html`) — connection status, `/api/stats` summary, raw `spawn` payload feed. Dev-only, no auth. |
+| `GET /` | Serve live dev dashboard (`backend/src/view/` — `index.html` + `styles.css` + `app.js`) **3 หน้า สลับด้วย URL hash**: `#overview` (สถานะปัจจุบัน + timeline + สรุป `/api/stats` + การ์ดต่อโซนพร้อม sparkline + feed ของ `spawn`) · `#state` (ตารางทุกหน้าต่างที่ได้รับ พร้อม occ/veh/mc และคำตัดสิน + สรุป % ต่อสถานะ) · `#json` (payload ดิบทั้ง 2 ช่อง กรองตามช่องได้). Dev-only, no auth, **ไม่พึ่ง CDN/ฟอนต์ภายนอก** (เซิร์ฟเวอร์ on-premise อาจไม่มีเน็ต) |
 
 ### Spawn-event schema (from AI Worker output)
 
@@ -116,8 +116,10 @@ not `spawn_vehicle` — it is unaffected by this.
   "windowStartSec": 20.0,
   "windowEndSec": 30.0,
   "zones": {
-    "in":  { "occupancy": 2.83, "vehicleFlowRate": 30.0, "motorcycleFlowRate": 12.0 },
-    "out": { "occupancy": 9.50, "vehicleFlowRate": 0.6,  "motorcycleFlowRate": 24.0 }
+    "in":  { "occupancy": 2.83, "vehicleFlowRate": 30.0, "motorcycleFlowRate": 12.0,
+             "trafficState": "normal" },
+    "out": { "occupancy": 9.50, "vehicleFlowRate": 0.6,  "motorcycleFlowRate": 24.0,
+             "trafficState": "standstill" }
   },
   "trafficState": "standstill"
 }
@@ -126,6 +128,10 @@ not `spawn_vehicle` — it is unaffected by this.
 `vehicleFlowRate` (car+truck+bus) คือค่าเดียวที่ใช้ตัดสิน — `motorcycleFlowRate` แยกออกมา
 เพราะมอเตอร์ไซค์มุดผ่านรถที่จอดติดได้ ถ้ารวมกันจะกลบสัญญาณ `standstill`
 (ดู `docs/data-contract.md` §2d) เป็น field ไม่บังคับ ไม่ส่งมา = 0
+
+`zones.*.trafficState` = คำตัดสินแยกรายฝั่งถนน (ไม่บังคับ ถ้าไม่ส่งมาให้ใช้ค่ารวมแทน) —
+ถนน 2 ฝั่งติดไม่พร้อมกัน วัดจริงแล้ว 50% ของหน้าต่างสองฝั่งคนละสถานะ ส่วน `trafficState`
+ระดับบนสุดคือโซนที่แย่ที่สุด ใช้เป็นพาดหัว — **ใช้คู่กัน ไม่ใช่แทนกัน**
 
 `trafficState` ∈ `normal` | `high_density` | `slow_moving` | `standstill`
 (ต้องตรงกับ `TRAFFIC_STATES` ใน `src/constants.ts` และ `STATE_*` ใน
@@ -148,6 +154,7 @@ Traffic-state (`POST /api/traffic-state`) — กฎเต็มดู `docs/dat
 ```
 REJECT if: any zone.occupancy or zone.vehicleFlowRate is negative or not finite
 REJECT if: any zone.motorcycleFlowRate is present but negative or not finite
+REJECT if: any zone.trafficState is present but not one of the 4 traffic states
 ```
 
 On rejection: HTTP 400 + reason string. Log warning with reason + raw payload
@@ -241,6 +248,10 @@ backend/
     │   └── vehicleCounters.ts       ← in-memory counter store (Prototype)
     ├── db/
     │   └── logger.ts                ← async TimescaleDB insert (MVP only)
+    ├── view/                        ← dev dashboard (static, เสิร์ฟด้วย express.static)
+    │   ├── index.html               ← markup เท่านั้น
+    │   ├── styles.css               ← design tokens + layout
+    │   └── app.js                   ← socket handlers, timeline, sparkline (vanilla JS)
     └── constants.ts                 ← named constants (e.g. VEHICLE_TYPES, MAX_VEHICLES)
 ```
 

@@ -46,6 +46,35 @@ describe('validateTrafficState', () => {
     expect(validateTrafficState(payload)).toEqual({ valid: true });
   });
 
+  // zones.*.trafficState เพิ่มมาใน contract 1.5.0 — ถนน 2 ฝั่งติดไม่พร้อมกัน
+  it('accepts a per-zone trafficState that differs from the overall verdict', () => {
+    const payload = {
+      ...validPayload,
+      zones: {
+        in: { occupancy: 0.0, vehicleFlowRate: 0.0, trafficState: 'normal' },
+        out: { occupancy: 9.0, vehicleFlowRate: 0.0, trafficState: 'standstill' },
+      },
+      trafficState: 'standstill',
+    };
+    expect(validateTrafficState(payload)).toEqual({ valid: true });
+  });
+
+  it('accepts a zone without trafficState (worker older than 1.5.0)', () => {
+    const payload = { ...validPayload, zones: { out: { occupancy: 1.2, vehicleFlowRate: 18.0 } } };
+    expect(validateTrafficState(payload)).toEqual({ valid: true });
+  });
+
+  it('rejects an unknown per-zone trafficState', () => {
+    const payload = {
+      ...validPayload,
+      zones: { out: { occupancy: 1, vehicleFlowRate: 6, trafficState: 'exploded' } },
+    };
+    expect(validateTrafficState(payload)).toEqual({
+      valid: false,
+      reason: expect.stringContaining('zones.out.trafficState'),
+    });
+  });
+
   it('rejects a non-object body', () => {
     expect(validateTrafficState(null).valid).toBe(false);
   });

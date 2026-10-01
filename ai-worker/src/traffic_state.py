@@ -218,11 +218,24 @@ def classify_zone(zone_window: ZoneWindow, thresholds: TrafficThresholds) -> str
     return STATE_HIGH_DENSITY
 
 
+def classify_zones(window: TrafficWindow, thresholds: TrafficThresholds) -> dict[str, str]:
+    """ตัดสินแยกรายโซน — ถนน 2 ฝั่งติดไม่พร้อมกัน จึงต้องรู้ทีละฝั่ง
+
+    (วัดกับคลิปจริง 2026-09-24: ครึ่งหนึ่งของหน้าต่างทั้งหมด 2 ฝั่งอยู่คนละสถานะ
+    เช่นขาเข้าโล่งสนิทขณะขาออกติดแน่น การยุบเหลือค่าเดียวจึงทิ้งข้อมูลไปครึ่งหนึ่ง)
+    """
+    return {
+        name: classify_zone(zone_window, thresholds) for name, zone_window in window.zones.items()
+    }
+
+
 def classify(window: TrafficWindow, thresholds: TrafficThresholds) -> str:
-    """ตัดสินสถานะรวมจากโซนที่แย่ที่สุด — รถติดฝั่งเดียวก็ถือว่ามีปัญหาจราจรแล้ว"""
+    """ตัดสินสถานะรวมจากโซนที่แย่ที่สุด — รถติดฝั่งเดียวก็ถือว่ามีปัญหาจราจรแล้ว
+
+    ใช้คู่กับ classify_zones() ไม่ใช่แทนกัน: ตัวนี้เป็นพาดหัว ตัวนั้นเป็นรายละเอียด
+    """
     worst = STATE_NORMAL
-    for zone_window in window.zones.values():
-        state = classify_zone(zone_window, thresholds)
+    for state in classify_zones(window, thresholds).values():
         if _SEVERITY[state] > _SEVERITY[worst]:
             worst = state
     return worst
@@ -268,16 +281,27 @@ def window_from_dict(data: dict[str, Any]) -> TrafficWindow:
 def to_traffic_state_payload(
     window: TrafficWindow,
     state: str,
+    zone_states: dict[str, str] | None = None,
     camera_id: str = DEFAULT_CAMERA_ID,
     now: datetime | None = None,
 ) -> dict[str, Any]:
-    """สร้าง payload ตาม docs/data-contract.md — ฟังก์ชันบริสุทธิ์ ทดสอบได้โดยไม่ต้องมีวิดีโอ"""
+    """สร้าง payload ตาม docs/data-contract.md — ฟังก์ชันบริสุทธิ์ ทดสอบได้โดยไม่ต้องมีวิดีโอ
+
+    zone_states = คำตัดสินรายโซน (จาก classify_zones) ยัดเข้าไปในแต่ละโซนของ payload
+    **ไม่ไปแตะ window_to_dict** เพราะรูปแบบนั้นคือสิ่งที่เขียนลง .jsonl ซึ่งต้องเป็นผลวัดล้วน
+    """
     # timezone.utc ไม่ใช่ datetime.UTC เพราะ alias นั้นมีเฉพาะ Python 3.11+
     moment = now or datetime.now(timezone.utc)  # noqa: UP017
+    measured = window_to_dict(window)
+
+    for name, zone in measured["zones"].items():
+        if zone_states and name in zone_states:
+            zone["trafficState"] = zone_states[name]
+
     return {
         "schema": TRAFFIC_STATE_SCHEMA,
         "timestamp": moment.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
         "cameraId": camera_id,
-        **window_to_dict(window),
+        **measured,
         "trafficState": state,
     }

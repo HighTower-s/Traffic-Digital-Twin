@@ -74,8 +74,8 @@ python -m src.main --config other.yaml    # ใช้ config อื่น
 ## 3. `replay` — ตัดสินสถานะ + เล่นซ้ำ
 
 ```bash
-python -m src.replay --fast       # ดูผลทันที ไม่หน่วงเวลา  <-- ใช้ตอนจูนเกณฑ์
-python -m src.replay              # เล่นตามจังหวะจริง (ใช้เวลาเท่าคลิป)
+python -m src.replay --fast       # ดูผลทันที ไม่หน่วงเวลา (พิมพ์อย่างเดียว ไม่ส่ง)  <-- ใช้ตอนจูนเกณฑ์
+python -m src.replay              # เล่นตามจังหวะจริง (พิมพ์อย่างเดียว ไม่ส่ง)
 python -m src.replay --backend    # ส่งเข้า backend จริง (ต้องเปิด backend ก่อน)
 
 python -m src.replay --file data/output_results/events_jam.jsonl --fast   # ใช้ไฟล์อื่น
@@ -84,8 +84,8 @@ python -m src.replay --backend-url http://192.168.1.5:3000 --backend      # back
 
 **ผลที่ได้:**
 ```
-[   0.0-  10.0s] NORMAL   in(occ=0.20 veh=0.0 mc=6.0)   out(occ=1.51 veh=24.0 mc=12.0)
-[  10.0-  20.0s] NORMAL   in(occ=1.72 veh=30.0 mc=0.0)  out(occ=0.58 veh=12.0 mc=6.0)
+[ 100.0- 120.0s] HIGH_DENSITY  in[NORMAL](occ=1.81 veh=3.0 mc=3.0)  out[HIGH_DENSITY](occ=4.02 veh=18.0 mc=6.0)
+[ 120.0- 140.0s] STANDSTILL    in[NORMAL](occ=0.73 veh=6.0 mc=0.0)  out[STANDSTILL](occ=4.21 veh=0.0 mc=9.0)
 ...
 สรุปสถานะจราจรตลอดคลิป:
   normal   10 ช่วง  (100%)
@@ -98,7 +98,7 @@ python -m src.replay --backend-url http://192.168.1.5:3000 --backend      # back
 ## 4. เทส / ตรวจคุณภาพโค้ด
 
 ```bash
-python -m pytest -q          # เทสทั้งหมด (113 ตัว, ~0.4 วิ ไม่ต้องมี GPU/วิดีโอ)
+python -m pytest -q          # เทสทั้งหมด (119 ตัว, ~0.3 วิ ไม่ต้องมี GPU/วิดีโอ)
 python -m pytest -v          # แสดงชื่อเทสทีละตัว
 python -m ruff check .       # lint
 python -m ruff check --fix . # lint + แก้อัตโนมัติ
@@ -149,6 +149,9 @@ traffic_state:
 
 > ต้องดู occupancy ก่อนเสมอ ไม่งั้น "ถนนว่าง" (flow=0) จะถูกตัดสินเป็น `standstill`
 
+**`in[...]` / `out[...]` คือคำตัดสินของฝั่งนั้นเอง** ส่วนตัวใหญ่ข้างหน้าคือค่ารวม (โซนที่แย่สุด) —
+ถนน 2 ฝั่งติดไม่พร้อมกัน ตัวอย่างข้างบนขาเข้าโล่งปกติขณะขาออกติดสนิท
+
 ---
 
 ## เชื่อมกับ backend
@@ -164,10 +167,15 @@ cd ai-worker && python -m src.replay --backend
 เปิด `http://localhost:3000/` ดู dashboard สด
 
 **2 ทางเลือกในการส่ง:**
-| วิธี | จังหวะเวลา | เหมาะกับ |
-|---|---|---|
-| `send_to_backend: true` ใน config.yaml (ส่งตอน `main.py`) | ❌ ไม่ตรงจังหวะจริง | ทดสอบเร็ว ๆ |
-| `python -m src.replay --backend` | ✅ ตรงจังหวะวิดีโอ | **เดโมจริง** |
+| วิธี | ส่งอะไรบ้าง | จังหวะเวลา | เหมาะกับ |
+|---|---|---|---|
+| `send_to_backend: true` ใน config.yaml (ส่งตอน `main.py`) | **spawn event เท่านั้น** ❌ ไม่มีสถานะจราจร | ❌ ไม่ตรงจังหวะจริง | ทดสอบเร็ว ๆ |
+| `python -m src.replay --backend` | ✅ spawn event **+ สถานะจราจร** | ✅ ตรงจังหวะวิดีโอ | **เดโมจริง** |
+
+> ⚠️ **ถ้า dashboard ขึ้นรถแต่การ์ด State ค้างที่ "waiting…"** แปลว่ายังไม่มีใครส่ง `traffic_state`
+> ไปเลย — `main.py` ส่งแค่ spawn (ตอนนั้นยังไม่มีคำตัดสิน) และ `replay` ที่ไม่ใส่ `--backend`
+> ไม่ส่งอะไรเลย **ต้องรัน `python -m src.replay --backend`**
+> (ถ้าไม่ใส่ `--fast` ด้วย การ์ดจะว่าง 10 วินาทีแรกเป็นปกติ เพราะหน้าต่างแรกปิดที่วินาทีที่ 10)
 
 ---
 

@@ -29,6 +29,7 @@ from src.poster import BackendPoster
 from src.traffic_state import (
     TrafficThresholds,
     classify,
+    classify_zones,
     to_traffic_state_payload,
     window_from_dict,
 )
@@ -97,12 +98,15 @@ def build_timeline(
 
     for raw in windows:
         window = window_from_dict(raw)
+        zone_states = classify_zones(window, thresholds)
         state = classify(window, thresholds)
         timeline.append(
             {
                 "videoTimeSec": window.window_end_sec,
                 "kind": KIND_STATE,
-                "payload": to_traffic_state_payload(window, state, camera_id=camera_id),
+                "payload": to_traffic_state_payload(
+                    window, state, zone_states, camera_id=camera_id
+                ),
             }
         )
 
@@ -136,6 +140,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("[replay] โหมด --fast: ไม่หน่วงเวลา")
     if args.backend:
         print(f"[replay] ส่งเข้า backend ที่ {args.backend_url}")
+    else:
+        # เคยมีคนงงว่าทำไม dashboard ไม่ขึ้นสถานะ — โหมดนี้พิมพ์อย่างเดียว ต้องบอกให้ชัด
+        print("[replay] โหมดดูอย่างเดียว — ไม่ได้ส่งออกไปไหน")
+        print("         ใส่ --backend ถ้าต้องการให้ dashboard / Unity เห็น")
     print()
 
     poster = BackendPoster(args.backend_url) if args.backend else None
@@ -146,8 +154,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if item["kind"] == KIND_STATE:
             states[payload["trafficState"]] += 1
             # veh = รถยนต์/บรรทุก/บัส (ใช้ตัดสิน) · mc = มอเตอร์ไซค์ (แสดงให้ดูเฉย ๆ)
+            # [...] = คำตัดสินของโซนนั้นเอง — ถนน 2 ฝั่งติดไม่พร้อมกัน ต้องเห็นแยก
             zones = "  ".join(
-                f"{name}(occ={z['occupancy']:.2f} "
+                f"{name}[{z.get('trafficState', '?').upper()}]"
+                f"(occ={z['occupancy']:.2f} "
                 f"veh={z['vehicleFlowRate']:.1f} mc={z['motorcycleFlowRate']:.1f})"
                 for name, z in payload["zones"].items()
             )

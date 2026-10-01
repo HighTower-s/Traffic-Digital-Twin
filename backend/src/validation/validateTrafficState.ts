@@ -7,6 +7,9 @@ export interface TrafficStateZone {
   /** มอเตอร์ไซค์ต่อนาที — แยกออกมาเพราะมุดผ่านรถติดได้ ไม่สะท้อนว่าถนนไหลจริง
    *  optional เพื่อรองรับ payload จาก worker รุ่นก่อน 1.4.0 */
   motorcycleFlowRate?: number;
+  /** คำตัดสินของฝั่งถนนนี้โดยเฉพาะ — ถนน 2 ฝั่งติดไม่พร้อมกัน ค่ารวมระดับบนสุด
+   *  จึงกลบครึ่งหนึ่งของข้อมูล optional เพื่อรองรับ worker รุ่นก่อน 1.5.0 */
+  trafficState?: TrafficState;
 }
 
 export interface TrafficStatePayload {
@@ -104,6 +107,15 @@ export function validateTrafficState(body: unknown): ValidationResult {
       return {
         valid: false,
         reason: `zones.${name}.motorcycleFlowRate must be a finite non-negative number when present`,
+      };
+    }
+
+    // ไม่บังคับ — แต่ถ้าส่งมาแล้วไม่ใช่สถานะที่รู้จัก ปฏิเสธดีกว่าปล่อยให้ Unity เดาเอง
+    const zoneState = zone['trafficState'];
+    if (zoneState !== undefined && !TRAFFIC_STATES.includes(zoneState as TrafficState)) {
+      return {
+        valid: false,
+        reason: `zones.${name}.trafficState "${String(zoneState)}" is not one of [${TRAFFIC_STATES.join(', ')}]`,
       };
     }
   }

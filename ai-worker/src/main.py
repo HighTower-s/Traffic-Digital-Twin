@@ -126,7 +126,10 @@ def print_header(
     )
     print(f"device      : {device}")
     if cfg.send_to_backend:
-        print(f"backend     : ส่งเข้า {cfg.backend_url}/api/ingest แบบ real-time")
+        # ย้ำว่าส่งแค่ spawn — ขั้นนี้ยังไม่มีคำตัดสินสถานะให้ส่ง (ดู traffic_state.py)
+        print(f"backend     : ส่ง spawn event เข้า {cfg.backend_url}/api/ingest แบบ real-time")
+        print("              (สถานะจราจรไม่ได้ส่งตรงนี้ — ตัดสินทีหลังด้วย")
+        print("               python -m src.replay --backend)")
     else:
         print("backend     : ปิด (ผลลัพธ์อยู่ใน data/output_results/ เท่านั้น)")
     if cfg.is_auto:
@@ -316,6 +319,10 @@ def print_summary(
     if poster is not None:
         print(f"  ส่งเข้า backend: {poster.sent} สำเร็จ  |  {poster.failed} ล้มเหลว")
     print(f"  หน้าต่างสถานะจราจร {windows_written} ช่วง (ช่วงละ {cfg.window_sec:.0f} วินาที)")
+    if windows_written:
+        # ข้อความสุดท้ายก่อนผู้ใช้ไปเปิด dashboard — ถ้าไม่บอกตรงนี้จะงงว่าทำไม State ว่าง
+        print("    ^ เป็นผลวัดล้วน ยังไม่ได้ตัดสินและยังไม่ได้ส่งเข้า backend")
+        print("      ขั้นต่อไป: python -m src.replay --backend")
     print(f"\n  {OUT_DIR / 'counts.csv'}     รายละเอียดรถที่นับได้")
     print(f"  {OUT_DIR / 'anomalies.csv'}  รถที่ถูกปฏิเสธ พร้อมเหตุผล")
     print(f"  {OUT_DIR / 'events.jsonl'}   payload ที่จะส่งให้ Unity (draft, ไม่มี lane/speed)")

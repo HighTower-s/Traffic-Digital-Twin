@@ -18,6 +18,7 @@ from src.traffic_state import (
     ZoneWindow,
     classify,
     classify_zone,
+    classify_zones,
     count_in_zones,
     to_traffic_state_payload,
     window_from_dict,
@@ -281,7 +282,105 @@ def test_all_zones_normal_gives_normal():
     assert classify(window, THRESHOLDS) == STATE_NORMAL
 
 
+# ==================================================== classify_zones (รายโซน)
+
+
+def test_zone_states_can_differ_between_sides():
+    """บั๊กจริงที่เจอ 2026-09-24: ขาเข้าโล่งสนิท ขาออกติดแน่น
+
+    ค่ารวมบอกว่า standstill ทั้งเส้น ทั้งที่ฝั่งหนึ่งวิ่งได้ปกติ
+    (วัดกับคลิปจริงแล้ว 50% ของหน้าต่างเป็นแบบนี้) จึงต้องรู้แยกรายฝั่ง
+    """
+    window = TrafficWindow(
+        window_start_sec=120.0,
+        window_end_sec=140.0,
+        zones={
+            "in": make_zone_window(occupancy=0.0, flow_rate=0.0),
+            "out": make_zone_window(occupancy=9.0, flow_rate=0.0),
+        },
+    )
+
+    assert classify_zones(window, THRESHOLDS) == {
+        "in": STATE_NORMAL,
+        "out": STATE_STANDSTILL,
+    }
+    # ตัวรวมยังเป็นโซนที่แย่ที่สุดเหมือนเดิม — ใช้คู่กัน ไม่ใช่แทนกัน
+    assert classify(window, THRESHOLDS) == STATE_STANDSTILL
+
+
+def test_classify_zones_covers_every_zone_including_single_zone_roads():
+    window = TrafficWindow(
+        window_start_sec=0.0,
+        window_end_sec=10.0,
+        zones={"in": make_zone_window(occupancy=1.0, flow_rate=30.0)},
+    )
+    assert classify_zones(window, THRESHOLDS) == {"in": STATE_NORMAL}
+
+
+def test_overall_state_always_matches_worst_zone_state():
+    """กันไม่ให้ตรรกะ 2 ทางหลุดกัน — classify ต้องเป็นตัวที่แย่สุดของ classify_zones เสมอ"""
+    window = TrafficWindow(
+        window_start_sec=0.0,
+        window_end_sec=10.0,
+        zones={
+            "in": make_zone_window(occupancy=8.0, flow_rate=6.0),
+            "out": make_zone_window(occupancy=1.0, flow_rate=30.0),
+        },
+    )
+    per_zone = classify_zones(window, THRESHOLDS)
+    assert per_zone == {"in": STATE_SLOW_MOVING, "out": STATE_NORMAL}
+    assert classify(window, THRESHOLDS) in per_zone.values()
+    assert classify(window, THRESHOLDS) == STATE_SLOW_MOVING
+
+
 # ==================================================== payload
+
+
+def test_payload_carries_each_zone_verdict():
+    window = TrafficWindow(
+        window_start_sec=120.0,
+        window_end_sec=140.0,
+        zones={
+            "in": make_zone_window(occupancy=0.0, flow_rate=0.0),
+            "out": make_zone_window(occupancy=9.0, flow_rate=0.0),
+        },
+    )
+    zone_states = classify_zones(window, THRESHOLDS)
+    payload = to_traffic_state_payload(
+        window, classify(window, THRESHOLDS), zone_states, now=FIXED_NOW
+    )
+
+    assert payload["zones"]["in"]["trafficState"] == STATE_NORMAL
+    assert payload["zones"]["out"]["trafficState"] == STATE_STANDSTILL
+    assert payload["trafficState"] == STATE_STANDSTILL
+    # ผลวัดต้องยังอยู่ครบ ไม่ถูกแทนที่
+    assert payload["zones"]["out"]["occupancy"] == 9.0
+
+
+def test_payload_without_zone_states_stays_measurement_only():
+    """ไม่ส่ง zone_states มา = payload รูปแบบก่อน 1.5.0 ต้องไม่มี key โผล่มาเอง"""
+    window = TrafficWindow(
+        window_start_sec=0.0,
+        window_end_sec=10.0,
+        zones={"in": make_zone_window(occupancy=1.0, flow_rate=30.0)},
+    )
+    payload = to_traffic_state_payload(window, STATE_NORMAL, now=FIXED_NOW)
+    assert "trafficState" not in payload["zones"]["in"]
+
+
+def test_zone_verdicts_never_leak_into_the_jsonl_format():
+    """window_to_dict คือรูปแบบที่เขียนลงไฟล์ ต้องเป็นผลวัดล้วนเสมอ
+
+    ถ้าคำตัดสินหลุดลงไฟล์ จะจูนเกณฑ์ใหม่โดยไม่รัน YOLO ซ้ำไม่ได้อีก
+    """
+    window = TrafficWindow(
+        window_start_sec=0.0,
+        window_end_sec=10.0,
+        zones={"in": make_zone_window(occupancy=9.0, flow_rate=0.0)},
+    )
+    to_traffic_state_payload(window, STATE_STANDSTILL, classify_zones(window, THRESHOLDS))
+
+    assert "trafficState" not in window_to_dict(window)["zones"]["in"]
 
 
 def test_payload_has_contract_fields():

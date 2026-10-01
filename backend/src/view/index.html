@@ -4,358 +4,209 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smart Flow — Live Monitor</title>
+  <link rel="stylesheet" href="/styles.css" />
   <script src="/socket.io/socket.io.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
-      padding: 24px;
-    }
-
-    header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-
-    header h1 { font-size: 1.4rem; font-weight: 600; }
-
-    #status-dot {
-      width: 12px; height: 12px;
-      border-radius: 50%;
-      background: #f85149;
-      flex-shrink: 0;
-      transition: background 0.3s;
-    }
-    #status-dot.connected { background: #3fb950; }
-
-    #status-label {
-      font-size: 0.85rem;
-      color: #8b949e;
-    }
-
-    h2 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: #8b949e;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    section { margin-bottom: 32px; }
-
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 16px;
-      margin-bottom: 16px;
-    }
-
-    .card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 16px;
-    }
-
-    .card .label {
-      font-size: 0.75rem;
-      color: #8b949e;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 8px;
-    }
-
-    .card .value {
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: #58a6ff;
-    }
-
-    .card .sub {
-      font-size: 0.8rem;
-      color: #8b949e;
-      margin-top: 4px;
-      word-break: break-all;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.875rem;
-    }
-
-    thead th {
-      text-align: left;
-      padding: 8px 12px;
-      background: #161b22;
-      color: #8b949e;
-      font-weight: 600;
-      border-bottom: 1px solid #30363d;
-    }
-
-    tbody tr { border-bottom: 1px solid #21262d; }
-    tbody tr:last-child { border-bottom: none; }
-
-    tbody td {
-      padding: 8px 12px;
-      color: #e6edf3;
-    }
-
-    .table-wrap {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .badge.car        { background: #1f6feb; color: #fff; }
-    .badge.truck      { background: #bb800a; color: #fff; }
-    .badge.motorcycle { background: #238636; color: #fff; }
-    .badge.bus        { background: #8957e5; color: #fff; }
-
-    #state-card .value { font-size: 1.3rem; }
-    .state-normal       { color: #3fb950; }
-    .state-high_density { color: #d29922; }
-    .state-slow_moving  { color: #db6d28; }
-    .state-standstill   { color: #f85149; }
-
-    .direction {
-      font-size: 0.75rem;
-      color: #8b949e;
-    }
-
-    #empty-state {
-      text-align: center;
-      padding: 40px;
-      color: #8b949e;
-      font-size: 0.9rem;
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-    }
-
-    .feed-item {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 10px;
-    }
-
-    .feed-item-head {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 8px;
-      font-size: 0.8rem;
-      color: #8b949e;
-      flex-wrap: wrap;
-    }
-
-    .feed-item-head .time { color: #e6edf3; }
-    .feed-item-head .track-id { font-family: monospace; }
-
-    pre {
-      font-family: 'Cascadia Code', 'Consolas', monospace;
-      font-size: 0.8rem;
-      color: #c9d1d9;
-      background: #0d1117;
-      border: 1px solid #21262d;
-      border-radius: 6px;
-      padding: 10px 12px;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
-
-    .flash { animation: flash 0.5s ease; }
-    @keyframes flash {
-      0%   { background: #1f3a5f; }
-      100% { background: #161b22; }
-    }
-  </style>
 </head>
 <body>
 
-<header>
-  <div id="status-dot"></div>
-  <h1>Smart Flow — Live Monitor</h1>
-  <span id="status-label">connecting…</span>
-</header>
+<div class="shell">
 
-<section id="traffic-state">
-  <h2>Traffic State</h2>
-  <div class="cards">
-    <div class="card" id="state-card">
-      <div class="label">Current State</div>
-      <div class="value" id="state-value">—</div>
-      <div class="sub" id="state-window">waiting for traffic-state…</div>
-    </div>
-    <div class="card">
-      <div class="label">In — occupancy / veh / mc</div>
-      <div class="value" id="state-in">—</div>
-      <div class="sub">in zone / cars per min / motorcycles per min</div>
-    </div>
-    <div class="card">
-      <div class="label">Out — occupancy / veh / mc</div>
-      <div class="value" id="state-out">—</div>
-      <div class="sub">in zone / cars per min / motorcycles per min</div>
-    </div>
-  </div>
-</section>
-
-<section id="summary">
-  <h2>Summary Report</h2>
-  <div class="cards">
-    <div class="card">
-      <div class="label">Total</div>
-      <div class="value" id="stat-all">—</div>
-      <div class="sub">vehicles counted</div>
-    </div>
-    <div class="card">
-      <div class="label">In</div>
-      <div class="value" id="stat-in">—</div>
-    </div>
-    <div class="card">
-      <div class="label">Out</div>
-      <div class="value" id="stat-out">—</div>
-    </div>
-    <div class="card">
-      <div class="label">Camera</div>
-      <div class="value" style="font-size:1rem; padding-top:6px;" id="stat-camera">—</div>
-      <div class="sub" id="stat-since">since —</div>
-    </div>
-  </div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th>Type</th><th>In</th><th>Out</th><th>Total</th></tr>
-      </thead>
-      <tbody id="stat-by-type">
-        <tr><td><span class="badge car">car</span></td><td id="stat-car-in">—</td><td id="stat-car-out">—</td><td id="stat-car-total">—</td></tr>
-        <tr><td><span class="badge truck">truck</span></td><td id="stat-truck-in">—</td><td id="stat-truck-out">—</td><td id="stat-truck-total">—</td></tr>
-        <tr><td><span class="badge motorcycle">motorcycle</span></td><td id="stat-motorcycle-in">—</td><td id="stat-motorcycle-out">—</td><td id="stat-motorcycle-total">—</td></tr>
-        <tr><td><span class="badge bus">bus</span></td><td id="stat-bus-in">—</td><td id="stat-bus-out">—</td><td id="stat-bus-total">—</td></tr>
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section id="feed-section">
-  <h2>Payload Feed</h2>
-  <div id="empty-state">Waiting for spawn events…</div>
-  <div id="feed-list"></div>
-</section>
-
-<script>
-  const MAX_FEED_ITEMS = 50;
-  const VEHICLE_TYPES = ['car', 'truck', 'motorcycle', 'bus'];
-
-  const socket = io();
-
-  const statusDot   = document.getElementById('status-dot');
-  const statusLabel = document.getElementById('status-label');
-  const emptyState  = document.getElementById('empty-state');
-  const feedList    = document.getElementById('feed-list');
-
-  socket.on('connect', () => {
-    statusDot.classList.add('connected');
-    statusLabel.textContent = 'connected';
-  });
-
-  socket.on('disconnect', () => {
-    statusDot.classList.remove('connected');
-    statusLabel.textContent = 'disconnected — retrying…';
-  });
-
-  socket.on('spawn', (event) => {
-    addFeedItem(event);
-    fetchStats();
-  });
-
-  socket.on('traffic_state', (payload) => {
-    const stateValue = document.getElementById('state-value');
-    stateValue.textContent = payload.trafficState.replace('_', ' ');
-    stateValue.className = `value state-${payload.trafficState}`;
-    document.getElementById('state-window').textContent =
-      `window ${payload.windowStartSec.toFixed(0)}–${payload.windowEndSec.toFixed(0)}s`;
-
-    for (const zone of ['in', 'out']) {
-      const data = payload.zones[zone];
-      // motorcycleFlowRate ไม่บังคับใน contract — worker รุ่นเก่าไม่ส่งมา
-      document.getElementById(`state-${zone}`).textContent = data
-        ? `${data.occupancy.toFixed(2)} / ${data.vehicleFlowRate.toFixed(1)} / ${(data.motorcycleFlowRate ?? 0).toFixed(1)}`
-        : '—';
-    }
-  });
-
-  function addFeedItem(event) {
-    emptyState.style.display = 'none';
-
-    const item = document.createElement('div');
-    item.className = 'feed-item flash';
-
-    const time = event.timestamp ? new Date(event.timestamp).toLocaleTimeString() : '—';
-    const confidence = typeof event.confidence === 'number' ? event.confidence.toFixed(2) : '—';
-
-    item.innerHTML = `
-      <div class="feed-item-head">
-        <span class="time">${time}</span>
-        <span class="badge ${event.type}">${event.type}</span>
-        <span class="direction">${event.direction}</span>
-        <span class="track-id">${event.trackId}</span>
-        <span>conf ${confidence}</span>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 17h4l3-10 3 14 3-8h3" />
+        </svg>
       </div>
-      <pre></pre>
-    `;
-    item.querySelector('pre').textContent = JSON.stringify(event, null, 2);
+      <div class="brand-name">Smart Flow</div>
+    </div>
 
-    feedList.prepend(item);
-    while (feedList.childElementCount > MAX_FEED_ITEMS) {
-      feedList.removeChild(feedList.lastElementChild);
-    }
-  }
+    <nav class="nav">
+      <a href="#overview" data-page="overview">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span>Overview</span>
+      </a>
+      <a href="#state" data-page="state">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+        <span>Traffic state</span>
+      </a>
+      <a href="#json" data-page="json">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1"/><path d="M16 4h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"/></svg>
+        <span>JSON</span>
+      </a>
+    </nav>
 
-  function renderStats(stats) {
-    document.getElementById('stat-all').textContent = stats.totals.all;
-    document.getElementById('stat-in').textContent = stats.totals.in;
-    document.getElementById('stat-out').textContent = stats.totals.out;
-    document.getElementById('stat-camera').textContent = stats.cameraId || '—';
-    document.getElementById('stat-since').textContent = stats.since
-      ? `since ${new Date(stats.since).toLocaleTimeString()}`
-      : 'since —';
+    <div class="sidebar-foot">
+      <div class="status" id="status"><span class="dot"></span><span id="status-label">connecting…</span></div>
+      <div class="meta">camera <strong id="meta-camera">—</strong></div>
+      <div class="meta">since <strong id="meta-since">—</strong></div>
+    </div>
+  </aside>
 
-    for (const type of VEHICLE_TYPES) {
-      const counts = stats.byType[type] ?? { in: 0, out: 0 };
-      document.getElementById(`stat-${type}-in`).textContent = counts.in;
-      document.getElementById(`stat-${type}-out`).textContent = counts.out;
-      document.getElementById(`stat-${type}-total`).textContent = counts.in + counts.out;
-    }
-  }
+  <main class="main">
 
-  function fetchStats() {
-    fetch('/api/stats')
-      .then((res) => res.json())
-      .then(renderStats)
-      .catch((err) => console.error('[dashboard] fetch /api/stats failed:', err));
-  }
+    <div class="topbar">
+      <div>
+        <h1 id="page-title">Live Monitor</h1>
+        <div class="sub" id="page-sub">Realtime feed from AI Worker · Prototype</div>
+      </div>
+      <button class="btn" id="reset-btn" type="button">Reset counters</button>
+    </div>
 
-  fetchStats();
-</script>
+    <!-- ============================================================ overview -->
+    <div class="page grid" id="page-overview" style="gap:28px">
 
+      <div class="card hero">
+        <div class="state-chip" id="state-chip" data-state="">
+          <span class="bullet"></span><span id="state-name">waiting…</span>
+        </div>
+        <div class="hero-meta">
+          <div>window <strong id="state-window">—</strong></div>
+          <div>updated <strong id="state-age">never</strong></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Traffic state timeline</div>
+          <div class="card-note" id="timeline-note">no windows yet</div>
+        </div>
+
+        <div class="empty" id="timeline-empty">
+          Waiting for the first traffic-state window…<br />
+          <code>python -m src.replay --backend</code> sends them — plain <code>src.replay</code> and <code>src.main</code> do not.
+        </div>
+
+        <div id="timeline-wrap" hidden>
+          <div id="timeline-rows"></div>
+          <div class="timeline-axis">
+            <span id="timeline-start">—</span>
+            <span id="timeline-end">—</span>
+          </div>
+          <div class="legend">
+            <span data-state="normal"><i></i>normal</span>
+            <span data-state="high_density"><i></i>high density</span>
+            <span data-state="slow_moving"><i></i>slow moving</span>
+            <span data-state="standstill"><i></i>standstill</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-stats">
+        <div class="card stat accent">
+          <div class="label">Vehicles counted</div>
+          <div class="value" id="stat-all">—</div>
+          <div class="sub">since server start</div>
+        </div>
+        <div class="card stat">
+          <div class="label">Inbound</div>
+          <div class="value" id="stat-in">—</div>
+          <div class="sub">direction in</div>
+        </div>
+        <div class="card stat">
+          <div class="label">Outbound</div>
+          <div class="value" id="stat-out">—</div>
+          <div class="sub">direction out</div>
+        </div>
+        <div class="card stat">
+          <div class="label">State windows</div>
+          <div class="value" id="stat-windows">0</div>
+          <div class="sub">received this session</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-head">
+          <div class="card-title">Zones</div>
+          <div class="card-note">occupancy = vehicles inside the zone · flow = crossings per minute</div>
+        </div>
+        <div class="empty" id="zones-empty">
+          Waiting for traffic-state data…<br />
+          Run <code>python -m src.replay --backend</code> to populate.
+        </div>
+        <div class="grid grid-zones" id="zone-grid"></div>
+      </div>
+
+      <div>
+        <div class="card-head">
+          <div class="card-title">Vehicles by type</div>
+        </div>
+        <div class="card">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th>Type</th><th>In</th><th>Out</th><th>Total</th></tr>
+              </thead>
+              <tbody id="type-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-head">
+          <div class="card-title">Spawn event feed</div>
+          <div class="card-note">newest first · click a row for the raw payload</div>
+        </div>
+        <div class="card">
+          <div class="empty" id="feed-empty">Waiting for spawn events…</div>
+          <div class="feed" id="feed-list"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================ traffic state -->
+    <div class="page grid" id="page-state" style="gap:28px" hidden>
+
+      <div class="grid grid-stats" id="state-summary"></div>
+
+      <div>
+        <div class="card-head">
+          <div class="card-title">Every window received</div>
+          <div class="card-note" id="state-table-note">oldest first · matches what <code>replay --fast</code> prints</div>
+        </div>
+        <div class="card">
+          <div class="empty" id="state-empty">
+            No traffic-state windows yet…<br />
+            Run <code>python -m src.replay --backend</code> to populate.
+          </div>
+          <div class="table-scroll" id="state-table-wrap" hidden>
+            <table class="dense">
+              <thead id="state-thead"></thead>
+              <tbody id="state-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================ json -->
+    <div class="page grid" id="page-json" style="gap:20px" hidden>
+
+      <div>
+        <div class="segmented" id="json-filter">
+          <button type="button" data-filter="all" class="active">All <span class="count" id="count-all">0</span></button>
+          <button type="button" data-filter="spawn">spawn <span class="count" id="count-spawn">0</span></button>
+          <button type="button" data-filter="traffic_state">traffic_state <span class="count" id="count-traffic_state">0</span></button>
+        </div>
+        <div class="card-note" style="margin-top:10px">counts are totals received · the last 100 payloads are kept below</div>
+      </div>
+
+      <div class="card">
+        <div class="empty" id="json-empty">
+          Nothing received yet…<br />
+          Raw payloads from both Socket.io channels land here as they arrive.
+        </div>
+        <div class="log" id="json-log"></div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script src="/app.js"></script>
 </body>
 </html>
