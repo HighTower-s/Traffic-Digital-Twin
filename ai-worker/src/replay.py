@@ -26,6 +26,7 @@ from src import config
 from src.constants import DEFAULT_BACKEND_URL, DEFAULT_CAMERA_ID
 from src.pacer import replay_paced
 from src.poster import BackendPoster
+from src.timeutil import iso_timestamp
 from src.traffic_state import (
     TrafficThresholds,
     classify,
@@ -96,17 +97,17 @@ def build_timeline(
         for event in events
     ]
 
+    # เก็บผลตัดสินไว้ แต่ **ยังไม่ประกอบ payload** — timestamp ต้องเป็นเวลาที่ส่งจริง
+    # ไม่ใช่เวลาที่สร้างไทม์ไลน์ ไม่งั้นทุกก้อนจะได้เวลาเดียวกันหมดทั้งที่ส่งห่างกันเป็นนาที
     for raw in windows:
         window = window_from_dict(raw)
-        zone_states = classify_zones(window, thresholds)
-        state = classify(window, thresholds)
         timeline.append(
             {
                 "videoTimeSec": window.window_end_sec,
                 "kind": KIND_STATE,
-                "payload": to_traffic_state_payload(
-                    window, state, zone_states, camera_id=camera_id
-                ),
+                "window": window,
+                "state": classify(window, thresholds),
+                "zoneStates": classify_zones(window, thresholds),
             }
         )
 
@@ -150,8 +151,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     states = Counter()
 
     def handle(item: dict[str, Any]) -> None:
-        payload = item["payload"]
         if item["kind"] == KIND_STATE:
+            # ประกอบ payload ตรงนี้ -> timestamp = เวลาที่ส่งจริง ตรงตาม data-contract
+            payload = to_traffic_state_payload(
+                item["window"], item["state"], item["zoneStates"], camera_id=camera_id
+            )
             states[payload["trafficState"]] += 1
             # veh = รถยนต์/บรรทุก/บัส (ใช้ตัดสิน) · mc = มอเตอร์ไซค์ (แสดงให้ดูเฉย ๆ)
             # [...] = คำตัดสินของโซนนั้นเอง — ถนน 2 ฝั่งติดไม่พร้อมกัน ต้องเห็นแยก
@@ -168,6 +172,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             if poster is not None:
                 poster.post_traffic_state(payload)
         else:
+            # timestamp ในไฟล์คือเวลาที่ "ตรวจพบ" ตอนรัน main.py (อาจเป็นสัปดาห์ก่อน)
+            # replay คือการจำลองสายสด จึงประทับเวลาใหม่ให้ตรงกับตอนส่ง
+            # เวลาในวิดีโอยังอยู่ครบที่ videoTimeSec / frameCount
+            payload = {**item["payload"], "timestamp": iso_timestamp()}
             print(f"  spawn {payload['trackId']:>18}  {payload['type']:<11} {payload['direction']}")
             if poster is not None:
                 poster.post(payload)

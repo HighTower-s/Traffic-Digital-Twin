@@ -36,12 +36,16 @@ DIRECTION_TOWARD: Final[str] = "toward"
 DIRECTION_AWAY: Final[str] = "away"
 DIRECTIONS: Final[tuple[str, str]] = (DIRECTION_TOWARD, DIRECTION_AWAY)
 
-# ชื่อทิศที่ใช้ใน payload ที่ส่งออก (ภายในใช้ toward/away เพื่อสื่อความหมายเชิงเรขาคณิต
-# แต่ภายนอกใช้ in/out ซึ่งเป็นภาษาที่ทีม Unity กับอาจารย์ใช้)
-DIRECTION_TO_IO: Final[dict[str, str]] = {
-    DIRECTION_TOWARD: "in",
-    DIRECTION_AWAY: "out",
-}
+# ชื่อทิศที่ใช้ใน payload ที่ส่งออก — เป็นภาษาที่ทีม Unity กับอาจารย์ใช้
+#
+# **in/out มาจาก "ชื่อโซน" ไม่ใช่จาก toward/away** เพราะ toward/away บอกแค่ว่ารถเคลื่อนที่
+# ไปทางไหน "ในภาพ" ซึ่งขึ้นกับว่ากล้องหันทางไหน ไม่ได้บอกว่าเข้าหรือออกจากสถานที่จริง
+# กล้องคนละมุมจะให้คำตอบตรงข้ามกันทั้งที่เป็นถนนเส้นเดียวกัน — ผู้ตั้งค่าจึงเป็นคนบอกเอง
+# ผ่านชื่อโซนใน config.yaml (ดู emitter.to_spawn_event)
+#
+# ไม่เสียข้อมูลอะไร: รถที่ข้ามผิดทิศถูกปฏิเสธไปแล้วตั้งแต่ counter (wrong_direction)
+# ดังนั้นรถที่นับได้ทุกคันมีทิศตรงกับ expectedDirection ของโซนตัวเองเสมอ
+IO_DIRECTIONS: Final[tuple[str, str]] = ("in", "out")
 
 # ---------------------------------------------------------------- anomaly
 

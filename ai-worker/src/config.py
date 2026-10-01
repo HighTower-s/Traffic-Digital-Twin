@@ -25,6 +25,7 @@ from src.constants import (
     DEFAULT_TRACKER,
     DEFAULT_WINDOW_SEC,
     DIRECTIONS,
+    IO_DIRECTIONS,
 )
 from src.counter import Point, Zone, point_in_polygon
 from src.traffic_state import TrafficThresholds
@@ -210,6 +211,13 @@ def _parse_zones(raw_zones: Any, config_path: Path) -> tuple[Zone, ...]:
         name = str(raw.get("name", "")).strip()
         if not name:
             raise ConfigError(f"{config_path}: zone ลำดับที่ {index} ไม่มีชื่อ")
+        # ชื่อโซนถูกส่งออกเป็น field `direction` ของ spawn event ตรง ๆ (ดู emitter)
+        # จึงตั้งชื่ออื่นไม่ได้ ไม่งั้น backend จะปฏิเสธ payload ด้วย HTTP 400
+        if name not in IO_DIRECTIONS:
+            raise ConfigError(
+                f"{config_path}: zone ลำดับที่ {index} ชื่อ {name!r} ใช้ไม่ได้ "
+                f"ต้องเป็นหนึ่งใน {list(IO_DIRECTIONS)} เพราะชื่อโซนถูกส่งออกเป็น direction"
+            )
         if name in seen:
             raise ConfigError(f"{config_path}: ชื่อโซนซ้ำกัน: {name!r}")
         seen.add(name)

@@ -22,6 +22,9 @@ venv/
 .ruff_cache/
 .pytest_cache/
 
+# Backend — payload ที่ broadcast ออกไป บันทึกไว้ดู/ส่งต่อให้ Unity (สร้างใหม่ทุกครั้งที่รัน)
+backend/data/
+
 # AI Worker — ไฟล์ที่ผู้ใช้อัปโหลด/ผลลัพธ์ + โมเดล (ไม่ต้องขึ้น git)
 ai-worker/**/data/
 ai-worker/**/uploads/

@@ -213,3 +213,39 @@ def test_traffic_state_rejects_standstill_flow_above_slow_flow():
     raw = base_raw(traffic_state={"thresholds": {"standstill_flow": 20, "slow_flow": 10}})
     with pytest.raises(ConfigError, match="slow_flow"):
         build_run_config(raw, FRAME_SIZE, FAKE_PATH)
+
+
+def test_rejects_zone_name_that_is_not_in_or_out():
+    """ชื่อโซนถูกส่งออกเป็น field `direction` ตรง ๆ ตั้งชื่ออื่น backend จะปฏิเสธด้วย 400
+    ดักตั้งแต่โหลด config ดีกว่าไปพังตอนยิงจริง"""
+    raw = {
+        "video": "v.mp4",
+        "zones": [
+            {
+                "name": "left",
+                "expectedDirection": "toward",
+                "polygon": [[0, 0], [10, 0], [10, 10], [0, 10]],
+                "line": [[0, 5], [10, 5]],
+            }
+        ],
+    }
+    with pytest.raises(ConfigError, match="direction"):
+        build_run_config(raw, FRAME_SIZE, FAKE_PATH)
+
+
+def test_accepts_in_zone_that_runs_away_from_camera():
+    """เลนขาเข้าอาจวิ่งออกจากกล้องก็ได้ ขึ้นกับว่ากล้องหันทางไหน — ต้องตั้งได้"""
+    raw = {
+        "video": "v.mp4",
+        "zones": [
+            {
+                "name": "in",
+                "expectedDirection": "away",
+                "polygon": [[0, 0], [10, 0], [10, 10], [0, 10]],
+                "line": [[0, 5], [10, 5]],
+            }
+        ],
+    }
+    cfg = build_run_config(raw, FRAME_SIZE, FAKE_PATH)
+    assert cfg.zones[0].name == "in"
+    assert cfg.zones[0].expected_direction == "away"

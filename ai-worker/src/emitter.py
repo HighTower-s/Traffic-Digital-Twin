@@ -13,13 +13,14 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from types import TracebackType
 from typing import Any, TextIO
 
-from src.constants import DEFAULT_CAMERA_ID, DIRECTION_TO_IO, SPAWN_EVENT_SCHEMA
+from src.constants import DEFAULT_CAMERA_ID, SPAWN_EVENT_SCHEMA
 from src.counter import CountEvent
+from src.timeutil import iso_timestamp
 
 # ปัดเศษก่อนส่งออก: เลขทศนิยม 15 ตำแหน่งไม่ได้ให้ข้อมูลเพิ่ม แต่ทำให้ log อ่านยาก
 CONFIDENCE_DIGITS = 3
@@ -33,22 +34,20 @@ def to_spawn_event(
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """สร้าง payload 1 คัน — ไม่มี lane/speed (ดู module docstring)"""
-    # ใช้ timezone.utc ไม่ใช่ datetime.UTC เพราะ alias นั้นมีเฉพาะ Python 3.11+
-    # ส่วนเทสรันบน 3.10 ด้วย
-    moment = now or datetime.now(timezone.utc)  # noqa: UP017
-
     # fps = 0 เกิดได้จริงกับวิดีโอบางไฟล์ที่ metadata เสีย — ห้ามหารด้วยศูนย์กลางรัน
     video_time = round(event.frame_index / fps, TIME_DIGITS) if fps > 0 else 0.0
 
     return {
         "schema": SPAWN_EVENT_SCHEMA,
-        "timestamp": moment.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+        "timestamp": iso_timestamp(now),
         "cameraId": camera_id,
         "videoTimeSec": video_time,
         "frameCount": event.frame_index,
         "trackId": f"{event.vehicle_type}-{event.track_id:04d}",
         "type": event.vehicle_type,
-        "direction": DIRECTION_TO_IO[event.direction],
+        # ชื่อโซน = in/out ที่ผู้ตั้งค่ากำหนดเอง ไม่ใช่ toward/away ที่ขึ้นกับมุมกล้อง
+        # (ดูเหตุผลเต็มที่ constants.IO_DIRECTIONS)
+        "direction": event.zone,
         "confidence": round(event.confidence, CONFIDENCE_DIGITS),
     }
 

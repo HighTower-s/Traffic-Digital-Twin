@@ -53,14 +53,25 @@ def test_track_id_format():
     assert payload["trackId"] == "car-0042"
 
 
-def test_direction_toward_maps_to_in():
-    payload = to_spawn_event(make_event(direction="toward"), fps=30.0, now=FIXED_NOW)
-    assert payload["direction"] == "in"
+def test_direction_comes_from_zone_name():
+    assert to_spawn_event(make_event(zone="in"), fps=30.0, now=FIXED_NOW)["direction"] == "in"
+    assert to_spawn_event(make_event(zone="out"), fps=30.0, now=FIXED_NOW)["direction"] == "out"
 
 
-def test_direction_away_maps_to_out():
-    payload = to_spawn_event(make_event(direction="away"), fps=30.0, now=FIXED_NOW)
-    assert payload["direction"] == "out"
+def test_direction_ignores_the_geometric_toward_away():
+    """toward/away บอกแค่ทิศ "ในภาพ" ซึ่งขึ้นกับมุมกล้อง — เลนที่วิ่งออกจากกล้อง
+    อาจเป็นขาเข้าสถานที่จริงก็ได้ ผู้ตั้งค่าจึงเป็นคนบอกผ่านชื่อโซน
+
+    (เจอจริง 2026-10-02: เลนซ้ายวิ่งออกจากกล้อง (away) แต่เป็นขาเข้า KMITL
+    ของเดิมบังคับ away -> "out" เสมอ ทำให้ตั้งเป็นขาเข้าไม่ได้เลย)
+    """
+    toward_in = to_spawn_event(make_event(zone="in", direction="toward"), 30.0, now=FIXED_NOW)
+    away_in = to_spawn_event(make_event(zone="in", direction="away"), 30.0, now=FIXED_NOW)
+    assert toward_in["direction"] == away_in["direction"] == "in"
+
+    away_out = to_spawn_event(make_event(zone="out", direction="away"), 30.0, now=FIXED_NOW)
+    toward_out = to_spawn_event(make_event(zone="out", direction="toward"), 30.0, now=FIXED_NOW)
+    assert away_out["direction"] == toward_out["direction"] == "out"
 
 
 def test_timestamp_is_iso8601_with_z_suffix():

@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from src.constants import (
@@ -43,6 +43,7 @@ from src.constants import (
     TRAFFIC_STATE_SCHEMA,
 )
 from src.counter import CountEvent, Detection, Zone, point_in_polygon
+from src.timeutil import iso_timestamp
 
 SECONDS_PER_MINUTE = 60.0
 OCCUPANCY_DIGITS = 2
@@ -290,8 +291,6 @@ def to_traffic_state_payload(
     zone_states = คำตัดสินรายโซน (จาก classify_zones) ยัดเข้าไปในแต่ละโซนของ payload
     **ไม่ไปแตะ window_to_dict** เพราะรูปแบบนั้นคือสิ่งที่เขียนลง .jsonl ซึ่งต้องเป็นผลวัดล้วน
     """
-    # timezone.utc ไม่ใช่ datetime.UTC เพราะ alias นั้นมีเฉพาะ Python 3.11+
-    moment = now or datetime.now(timezone.utc)  # noqa: UP017
     measured = window_to_dict(window)
 
     for name, zone in measured["zones"].items():
@@ -300,7 +299,7 @@ def to_traffic_state_payload(
 
     return {
         "schema": TRAFFIC_STATE_SCHEMA,
-        "timestamp": moment.isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+        "timestamp": iso_timestamp(now),
         "cameraId": camera_id,
         **measured,
         "trafficState": state,
