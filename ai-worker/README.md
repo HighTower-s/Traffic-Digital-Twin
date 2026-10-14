@@ -33,31 +33,32 @@ pip install torch --index-url https://download.pytorch.org/whl/cu128
    `mkdir -p data/input_videos data/output_results data/weights`
 1. วางไฟล์วิดีโอไว้ที่ `data/input_videos/`
 2. วางไฟล์โมเดล (เช่น `yolov8s.pt`) ไว้ที่ `data/weights/` (หรือปล่อยให้ ultralytics ดาวน์โหลดอัตโนมัติ)
-3. แก้ `config.yaml` ให้ `video:` ชี้ไปที่ไฟล์วิดีโอ
+3. แก้ไฟล์ใน [`configs/`](configs/) ให้ `video:` ชี้ไปที่ไฟล์วิดีโอ
 4. รัน:
 
 ```bash
-python -m src.main                      # ใช้ config.yaml ที่ root
-python -m src.main --config other.yaml  # ใช้ config อื่น
+python -m src.main                                   # ใช้ configs/event-2.yaml (ค่าเริ่มต้น)
+python -m src.main --config configs/traffic-5.yaml   # ใช้มุมกล้องอื่น
 ```
 
 ปุ่มระหว่างรัน: `q` ออก · `เว้นวรรค` หยุด/เล่นต่อ
 
-ค่าตั้งได้ทั้งหมดอยู่ใน [`config.yaml`](config.yaml): path วิดีโอ/โมเดล, `imgsz`, `conf`,
-`tracker`, `device`, `max_frames`, `emit_preview`, `zones`
+ค่าตั้งได้ทั้งหมดอยู่ในไฟล์ที่ `--config` ชี้ — หนึ่งไฟล์ต่อมุมกล้อง สมบูรณ์ในตัวเอง
+(path วิดีโอ/โมเดล, `imgsz`, `conf`, `tracker`, `device`, `max_frames`, `emit_preview`,
+`zones`, `traffic_state`) ดูชุดที่มีทั้งหมดที่ [`configs/README.md`](configs/README.md)
 
 ---
 
 ## ⚠️ โหมดโซนอัตโนมัติกับความแม่นยำ
 
-ถ้า `config.yaml` ตั้ง `zones: auto` โปรแกรมจะเดาโซน/เส้นนับจากขนาดเฟรมให้ **เห็นภาพเร็ว**
+ถ้าไฟล์ config ตั้ง `zones: auto` โปรแกรมจะเดาโซน/เส้นนับจากขนาดเฟรมให้ **เห็นภาพเร็ว**
 ไม่ใช่ให้ตัวเลขที่เชื่อได้ ปัญหาที่คาดไว้:
 
 - เส้นนับอยู่กลางภาพ ซึ่งอาจเป็นระยะที่รถเล็กเกินกว่าจะจำแนกชนิดถูก
 - polygon กินครึ่งภาพเต็ม ๆ จึงอาจรวมถนนซอย ทางเท้า หรือราวสะพานเข้ามาด้วย
 - เส้นแบ่งทิศถูกสมมติว่าอยู่กลางภาพพอดี ซึ่งจริง ๆ แล้วมักเอียงและไม่อยู่ตรงกลาง
 
-ทำให้แม่นขึ้นด้วยการกำหนด `zones` เองใน `config.yaml` (ดูตัวอย่างที่คอมเมนต์ไว้ในไฟล์):
+ทำให้แม่นขึ้นด้วยการกำหนด `zones` เองในไฟล์ config (ดูตัวอย่างในไฟล์ที่มีอยู่แล้วใน `configs/`):
 แต่ละโซนมี `name`, `expectedDirection` (`toward`/`away`), `polygon` (จุดอย่างน้อย 3 จุด),
 `line` (จุดตัดกับถนน 2 จุด)
 
@@ -66,14 +67,14 @@ python -m src.main --config other.yaml  # ใช้ config อื่น
 ไม่ต้องเดาพิกัดเอง ใช้ `calibrate.py` คลิกจากเฟรมจริงของวิดีโอได้เลย:
 
 ```bash
-python -m src.calibrate                                  # ใช้ video: จาก config.yaml
+python -m src.calibrate                                  # ใช้ video: จากไฟล์ config
 python -m src.calibrate --video data/input_videos/x.mp4  # หรือระบุไฟล์เอง
 python -m src.calibrate --frame 90                       # เลือกเฟรมอื่น (ค่าเริ่มต้น 60)
 ```
 
 คลิกซ้าย = เพิ่มจุด · `Enter` = จบรูปปัจจุบัน (polygon → line → zone ถัดไป) · `u` = undo ·
 `r` = reset รูปปัจจุบัน · `q` = เลิกทั้งหมด — จบแล้วจะ print YAML พร้อมก็อปวางใส่
-`config.yaml` ทันที (พิกัดอ้างอิงตามขนาดเฟรมจริงเสมอ ต่อให้หน้าต่างที่เห็นถูกย่อแสดงผล)
+ไฟล์ config ทันที (พิกัดอ้างอิงตามขนาดเฟรมจริงเสมอ ต่อให้หน้าต่างที่เห็นถูกย่อแสดงผล)
 
 ---
 
@@ -137,15 +138,16 @@ ai-worker/
 │   ├── output_results/    # counts.csv, anomalies.csv, events.jsonl
 │   └── weights/           # ไฟล์โมเดล .pt
 ├── src/
-│   ├── main.py            # อ่าน config.yaml + ลูปวิดีโอ + เขียนไฟล์ + สรุป
+│   ├── main.py            # อ่านไฟล์ config + ลูปวิดีโอ + เขียนไฟล์ + สรุป
 │   ├── detector.py        # ครอบ YOLOv8 + ByteTrack -> list[Detection]
 │   ├── counter.py         # geometry + VehicleCounter (แกนการนับ, บริสุทธิ์)
-│   ├── config.py          # โหลด config.yaml + auto_zones + validation (บริสุทธิ์)
+│   ├── config.py          # โหลดไฟล์ config + auto_zones + validation (บริสุทธิ์)
 │   ├── constants.py       # ค่าคงที่ทั้งหมด (บริสุทธิ์)
 │   ├── emitter.py         # spawn event -> events.jsonl (บริสุทธิ์)
 │   └── overlay.py         # วาดกล่อง/โซน/เส้น/HUD
 ├── tests/                 # test_counter, test_config, test_emitter, test_detector
-└── config.yaml            # ตั้งค่าทั้งหมด
+├── configs/               # ไฟล์ config ต่อมุมกล้อง (default: event-2.yaml)
+└── runs/                  # ชุดข้อมูลที่วิเคราะห์แล้ว เล่นซ้ำด้วย replay --from
 ```
 
 สเปกเป้าหมายระยะยาวและ Roadmap → real-time: [`CLAUDE.md`](CLAUDE.md)

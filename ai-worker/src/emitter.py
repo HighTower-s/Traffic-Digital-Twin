@@ -99,8 +99,8 @@ class SpawnEventWriter:
             self._echoed += 1
             if self._echo_limit is not None and self._echoed == self._echo_limit:
                 print(
-                    f"  … ถึงขีด emit_preview {self._echo_limit} แล้ว "
-                    f"หยุด print แต่ยังเขียนครบทุกคันลง {self._path}",
+                    f"  ... reached emit_preview limit {self._echo_limit} — "
+                    f"no longer printing, but still writing every vehicle to {self._path}",
                     flush=True,
                 )
 

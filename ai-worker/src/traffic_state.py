@@ -119,7 +119,7 @@ class WindowAccumulator:
 
     def __init__(self, zones: Sequence[Zone], window_sec: float = DEFAULT_WINDOW_SEC) -> None:
         if window_sec <= 0:
-            raise ValueError(f"window_sec ต้องมากกว่า 0 (ได้ {window_sec})")
+            raise ValueError(f"window_sec must be greater than 0 (got {window_sec})")
         self._zones = tuple(zones)
         self._window_sec = window_sec
         self._window_start_sec = 0.0

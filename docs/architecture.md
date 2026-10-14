@@ -100,7 +100,7 @@ Mock Server  ──────────────────▶  Backend 
 | | FastAPI + Uvicorn | latest stable | เว็บอัปโหลด + calibrate homography + สตรีม |
 | | httpx | >=0.27 | POST เฟรมเข้า backend/api/ingest |
 | | python-dotenv | >=1.0 | อ่านค่า config จาก .env |
-| | pyyaml | >=6.0 | อ่าน `config.yaml` ของ prototype line-counting (2026-08-09) |
+| | pyyaml | >=6.0 | อ่าน config YAML ของ prototype line-counting (2026-08-09) |
 | Backend | Node.js | 20 LTS | |
 | | Express | 4.x | HTTP server |
 | | Socket.io | 4.x | WebSocket abstraction |
@@ -148,7 +148,7 @@ reimplementing the same patterns from scratch.
 
 ### Why pyyaml สำหรับ AI Worker prototype (2026-08-09)
 Prototype ตัว line-counting ตั้งค่า (path วิดีโอ/โมเดล, conf, imgsz, โซนนับ) ผ่านไฟล์
-`ai-worker/config.yaml` แทน CLI arguments เพราะ workflow จริงคือถ่ายคลิปแล้วรันซ้ำหลายรอบ
+ไฟล์ YAML ใน `ai-worker/configs/` แทน CLI arguments เพราะ workflow จริงคือถ่ายคลิปแล้วรันซ้ำหลายรอบ
 ปรับค่าทีละนิด — YAML file อ่านง่ายกว่าพิมพ์ flag ยาว ๆ ทุกครั้ง พิจารณา JSON แล้วแต่ YAML
 รองรับ comment ได้ (จำเป็นสำหรับอธิบายตัวอย่าง `zones:` ในไฟล์) `pyyaml` เป็นไลบรารีมาตรฐาน
 สำหรับงานนี้ใน Python ไม่มีเหตุผลจะเขียน parser เอง

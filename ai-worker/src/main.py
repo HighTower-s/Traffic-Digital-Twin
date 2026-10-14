@@ -1,13 +1,13 @@
-"""AI Worker — นับรถจากไฟล์วิดีโอ ตั้งค่าผ่าน config.yaml
+"""AI Worker — Count vehicles from a video file, configured via a config file
 
-    python -m src.main                    ใช้ config.yaml ที่ root ของ ai-worker/
+    python -m src.main                    ใช้ configs/event-2.yaml (ค่าเริ่มต้น)
     python -m src.main --config other.yaml
 
 ปุ่มระหว่างรัน:  q = ออก   ช่องว่าง = หยุด/เล่นต่อ
 
 **เวอร์ชันนี้ไม่มี lane และไม่มี speed** (ตัดออก 2026-08-09 — ดู ai-worker/CLAUDE.md §5)
 ผลลัพธ์อยู่ใน data/output_results/ เสมอ — ส่งเข้า backend ด้วยถ้าตั้ง send_to_backend: true
-ใน config.yaml (ปิดเป็นค่าเริ่มต้น) ดู ai-worker/CLAUDE.md §4 Roadmap ขั้น 3
+ใน ไฟล์ config (ปิดเป็นค่าเริ่มต้น) ดู ai-worker/CLAUDE.md §4 Roadmap ขั้น 3
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, TextIO
 
-from src import config, overlay
+from src import config, overlay, replay
 from src.config import RunConfig
 from src.constants import DISPLAY_MAX_SIDE, ZERO_COUNT_WARN_FRAMES
 from src.counter import AnomalyEvent, CountEvent, VehicleCounter
@@ -31,7 +31,7 @@ from src.traffic_state import WindowAccumulator, window_to_dict
 
 HERE = Path(__file__).parent
 AI_WORKER_ROOT = HERE.parent
-DEFAULT_CONFIG_PATH = AI_WORKER_ROOT / "config.yaml"
+DEFAULT_CONFIG_PATH = AI_WORKER_ROOT / "configs" / "event-2.yaml"
 OUT_DIR = AI_WORKER_ROOT / "data" / "output_results"
 WINDOW_NAME = "AI Worker - vehicle counting (q=quit, space=pause)"
 
@@ -44,9 +44,25 @@ ANOMALY_COLUMNS = [*COUNT_COLUMNS, "reason"]
 
 # Command-line interface
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="นับรถจากไฟล์วิดีโอ ตั้งค่าผ่าน config.yaml")
+    parser = argparse.ArgumentParser(
+        description="Count vehicles from a video file, configured via a config file"
+    )
     parser.add_argument(
-        "--config", type=Path, default=DEFAULT_CONFIG_PATH, help="path ไปยัง config.yaml"
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG_PATH,
+        help="path to a config file under configs/",
+    )
+    # ต่อขั้น "ตัดสิน" ให้อัตโนมัติ — ปกติต้องสั่ง python -m src.replay แยกอีกคำสั่ง
+    parser.add_argument(
+        "--replay",
+        action="store_true",
+        help="after detection, immediately show the traffic-state verdicts",
+    )
+    parser.add_argument(
+        "--replay-backend",
+        action="store_true",
+        help="after detection, immediately post to the backend (start the backend first)",
     )
     return parser.parse_args(argv)
 
@@ -101,7 +117,8 @@ def open_video(path: Path) -> tuple[Any, tuple[int, int], float, int]:
     if not cap.isOpened():
         raise SystemExit(
             f"error cant open video: {path.resolve()}\n"
-            f"  ไฟล์อาจเสีย หรือ OpenCV ไม่รองรับ codec นี้ ลองแปลงเป็น H.264 mp4 ก่อน"
+            f"  The file may be corrupt, or OpenCV may not support this codec\n"
+            f"  — try converting it to H.264 mp4 first"
         )
 
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -111,7 +128,7 @@ def open_video(path: Path) -> tuple[Any, tuple[int, int], float, int]:
 
     if width <= 0 or height <= 0:
         cap.release()
-        raise SystemExit(f"[ผิดพลาด] อ่านขนาดเฟรมจาก {path.name} ไม่ได้ (ได้ {width}x{height})")
+        raise SystemExit(f"[error] Cannot read frame size from {path.name} (got {width}x{height})")
     return cap, (width, height), fps, total
 
 
@@ -119,7 +136,7 @@ def print_header(
     cfg: RunConfig, frame_size: tuple[int, int], fps: float, total_frames: int, device: str
 ) -> None:
     print(f"video     : {cfg.video_path}")
-    print(f"Frame_size   : {frame_size[0]}x{frame_size[1]}  fps={fps:.2f}  เฟรม={total_frames}")
+    print(f"Frame_size   : {frame_size[0]}x{frame_size[1]}  fps={fps:.2f}  frames={total_frames}")
     print(
         f"model       : {cfg.model}  tracker={cfg.tracker}  "
         f"imgsz={cfg.imgsz}  conf={cfg.conf_threshold}"
@@ -127,19 +144,19 @@ def print_header(
     print(f"device      : {device}")
     if cfg.send_to_backend:
         # ย้ำว่าส่งแค่ spawn — ขั้นนี้ยังไม่มีคำตัดสินสถานะให้ส่ง (ดู traffic_state.py)
-        print(f"backend     : ส่ง spawn event เข้า {cfg.backend_url}/api/ingest แบบ real-time")
-        print("              (สถานะจราจรไม่ได้ส่งตรงนี้ — ตัดสินทีหลังด้วย")
+        print(f"backend     : posting spawn events to {cfg.backend_url}/api/ingest in real time")
+        print("              (traffic state is NOT sent here — it is decided later by")
         print("               python -m src.replay --backend)")
     else:
-        print("backend     : ปิด (ผลลัพธ์อยู่ใน data/output_results/ เท่านั้น)")
+        print("backend     : off (results go to data/output_results/ only)")
     if cfg.is_auto:
         print(
-            "zone         : **เดาให้อัตโนมัติ** จากขนาดเฟรม (ยังไม่ได้กำหนดเอง)\n"
-            "              ตัวเลขที่ได้ใช้ดูภาพรวมได้ แต่ยังไม่ควรเอาไปอ้างอิง\n"
-            "              ทำให้แม่นขึ้น: กำหนด zones เองใน config.yaml"
+            "zone         : **auto-guessed** from the frame size (not defined by you)\n"
+            "              Useful for a quick look, but not reliable enough to cite\n"
+            "              For better accuracy: define zones yourself in the config file"
         )
     else:
-        print("zone         : กำหนดเองใน config.yaml")
+        print("zone         : defined manually in the config file")
     for zone in cfg.zones:
         print(f"              - {zone.name}: {zone.expected_direction}")
     print()
@@ -152,18 +169,18 @@ def run(args: argparse.Namespace) -> int:
     import cv2
 
     if not args.config.exists():
-        print(f"[ผิดพลาด] ไม่พบไฟล์ config: {args.config.resolve()}", file=sys.stderr)
+        print(f"[error] Config file not found: {args.config.resolve()}", file=sys.stderr)
         return 1
 
     try:
         raw = config.load_yaml_config(args.config)
     except config.ConfigError as exc:
-        print(f"[ผิดพลาด] {exc}", file=sys.stderr)
+        print(f"[error] {exc}", file=sys.stderr)
         return 1
 
     video_path = AI_WORKER_ROOT / raw["video"] if raw.get("video") else None
     if video_path is None:
-        print(f"[ผิดพลาด] {args.config}: ต้องระบุ 'video'", file=sys.stderr)
+        print(f"[error] {args.config}: 'video' is required", file=sys.stderr)
         return 1
 
     cap, frame_size, fps, total_frames = open_video(video_path)
@@ -172,7 +189,7 @@ def run(args: argparse.Namespace) -> int:
         cfg = config.build_run_config(raw, frame_size, args.config)
     except config.ConfigError as exc:
         cap.release()
-        print(f"[ผิดพลาด] {exc}", file=sys.stderr)
+        print(f"[error] {exc}", file=sys.stderr)
         return 1
 
     try:
@@ -185,7 +202,7 @@ def run(args: argparse.Namespace) -> int:
         )
     except DetectorError as exc:
         cap.release()
-        print(f"[ผิดพลาด] {exc}", file=sys.stderr)
+        print(f"[error] {exc}", file=sys.stderr)
         return 1
 
     print_header(cfg, frame_size, fps, total_frames, detector.device)
@@ -251,8 +268,11 @@ def run(args: argparse.Namespace) -> int:
                     and frame_index >= ZERO_COUNT_WARN_FRAMES
                     and vehicle_counter.total_count == 0
                 ):
-                    warning = f"ยังนับไม่ได้เลยหลัง {ZERO_COUNT_WARN_FRAMES} เฟรม - ตรวจโซน/เส้นนับ"
-                    print(f"\n[เตือน] {warning}\n")
+                    warning = (
+                        f"still 0 counted after {ZERO_COUNT_WARN_FRAMES} frames"
+                        " - check zones/counting line"
+                    )
+                    print(f"\n[warn] {warning}\n")
                     warned_zero = True
 
                 if show_window:
@@ -275,12 +295,12 @@ def run(args: argparse.Namespace) -> int:
             if show_window:
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord("q"):
-                    print("\n[หยุด] กด q")
+                    print("\n[stopped] q pressed")
                     break
                 if key == ord(" "):
                     paused = not paused
     except KeyboardInterrupt:
-        print("\n[หยุด] Ctrl-C")
+        print("\n[stopped] Ctrl-C")
     finally:
         cap.release()
         if show_window:
@@ -310,33 +330,50 @@ def print_summary(
     windows_written: int = 0,
 ) -> None:
     print("\n" + "=" * 60)
-    print(f"ประมวลผล {frames_processed} เฟรม")
+    print(f"Processed {frames_processed} frames")
     for line in vehicle_counter.summary_lines():
         print("  " + line)
-    print(
-        f"\n  รวมทั้งหมด {vehicle_counter.total_count} คัน  |  spawn event {events_written} รายการ"
-    )
+    print(f"\n  Total {vehicle_counter.total_count} vehicles  |  {events_written} spawn events")
     if poster is not None:
-        print(f"  ส่งเข้า backend: {poster.sent} สำเร็จ  |  {poster.failed} ล้มเหลว")
-    print(f"  หน้าต่างสถานะจราจร {windows_written} ช่วง (ช่วงละ {cfg.window_sec:.0f} วินาที)")
+        print(f"  Posted to backend: {poster.sent} ok  |  {poster.failed} failed")
+    print(f"  Traffic-state windows: {windows_written} (each {cfg.window_sec:.0f} s)")
     if windows_written:
         # ข้อความสุดท้ายก่อนผู้ใช้ไปเปิด dashboard — ถ้าไม่บอกตรงนี้จะงงว่าทำไม State ว่าง
-        print("    ^ เป็นผลวัดล้วน ยังไม่ได้ตัดสินและยังไม่ได้ส่งเข้า backend")
-        print("      ขั้นต่อไป: python -m src.replay --backend")
-    print(f"\n  {OUT_DIR / 'counts.csv'}     รายละเอียดรถที่นับได้")
-    print(f"  {OUT_DIR / 'anomalies.csv'}  รถที่ถูกปฏิเสธ พร้อมเหตุผล")
-    print(f"  {OUT_DIR / 'events.jsonl'}   payload ที่จะส่งให้ Unity (draft, ไม่มี lane/speed)")
-    print(f"  {OUT_DIR / 'traffic_state.jsonl'}  ผลวัดความหนาแน่น/การไหล (ยังไม่ตัดสินสถานะ)")
+        print("    ^ measurements only — not yet classified and not sent to the backend")
+        print("      Next step: python -m src.replay --backend")
+    print(f"\n  {OUT_DIR / 'counts.csv'}     details of every counted vehicle")
+    print(f"  {OUT_DIR / 'anomalies.csv'}  rejected vehicles, with reasons")
+    print(f"  {OUT_DIR / 'events.jsonl'}   payload sent to Unity (draft, no lane/speed)")
+    print(f"  {OUT_DIR / 'traffic_state.jsonl'}  density/flow measurements (not yet classified)")
+    # ไฟล์ข้างบนถูกเขียนทับทุกครั้งที่รัน main — อยากเก็บชุดนี้ไว้ต้องย้ายออกไปเอง
+    print(
+        "\n  To replay this dataset later without re-running YOLO:\n"
+        "  copy events.jsonl + traffic_state.jsonl and the config file into runs/<dataset-name>/\n"
+        "      python -m src.replay --from runs/<dataset-name> --backend"
+    )
     if cfg.is_auto:
         print(
-            "\n  หมายเหตุ: รอบนี้ใช้โซนที่เดาให้ ตัวเลขยังไม่ควรเอาไปอ้างอิง\n"
-            "  ทำให้แม่นขึ้น: กำหนด zones เองใน config.yaml"
+            "\n  Note: this run used auto-guessed zones — the numbers are not yet reliable\n"
+            "  For better accuracy: define zones yourself in the config file"
         )
     print("=" * 60)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    return run(parse_args(argv))
+    args = parse_args(argv)
+    status = run(args)
+    if status != 0:
+        return status
+
+    # เรียก replay ต่อในโพรเซสเดียวกัน — มันอ่าน traffic_state.jsonl ที่ run() เพิ่งเขียนไป
+    # (replay.py ไม่ได้ import main.py จึงไม่มี circular import)
+    if args.replay or args.replay_backend:
+        replay_args = ["--config", str(args.config)]
+        replay_args += ["--backend"] if args.replay_backend else ["--fast"]
+        print()
+        return replay.main(replay_args)
+
+    return 0
 
 
 if __name__ == "__main__":

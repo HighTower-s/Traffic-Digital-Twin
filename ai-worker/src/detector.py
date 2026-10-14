@@ -94,7 +94,7 @@ def detections_from_result(result: Any) -> list[Detection]:
 
 
 def resolve_device(preference: str = "auto") -> str:
-    """เลือก device ตามที่ config.yaml ระบุ และ **เตือนดัง ๆ** ถ้าตกไป CPU
+    """เลือก device ตามที่ ไฟล์ config ระบุ และ **เตือนดัง ๆ** ถ้าตกไป CPU
 
     การตกไป CPU เงียบ ๆ ทำให้เข้าใจผิดว่า "โปรแกรมช้า" ทั้งที่จริงคือติดตั้ง torch ผิดรุ่น
     """
@@ -106,16 +106,16 @@ def resolve_device(preference: str = "auto") -> str:
     try:
         import torch
     except ImportError:
-        print("[เตือน] ไม่พบ torch — จะใช้ CPU ซึ่งช้ากว่ามาก")
+        print("[warn] torch not found — falling back to CPU, which is much slower")
         return "cpu"
 
     if torch.cuda.is_available():
         return "0"
 
     print(
-        "[เตือน] torch.cuda.is_available() = False จะรันบน CPU (ช้ากว่าหลายเท่า)\n"
-        "        ถ้าเครื่องมีการ์ดจอ NVIDIA แปลว่า torch ที่ลงไว้เป็นรุ่น CPU-only\n"
-        "        ลง torch รุ่น CUDA: pip install torch --index-url "
+        "[warn] torch.cuda.is_available() = False — running on CPU (several times slower)\n"
+        "       If this machine has an NVIDIA GPU, the installed torch is a CPU-only build\n"
+        "       Install the CUDA build: pip install torch --index-url "
         "https://download.pytorch.org/whl/cu128"
     )
     return "cpu"
@@ -136,19 +136,19 @@ class VehicleDetector:
             from ultralytics import YOLO
         except ImportError as exc:
             raise DetectorError(
-                "ไม่พบไลบรารี ultralytics\n  ติดตั้งด้วย: pip install -r requirements.txt"
+                "ultralytics library not found\n  Install it with: pip install -r requirements.txt"
             ) from exc
 
         resolved = resolve_model_path(model_path)
         if resolved != model_path:
-            print(f"[โมเดล] ใช้ไฟล์ที่เจอในเครื่อง: {resolved}")
+            print(f"[model] Using local file: {resolved}")
 
         try:
             self._model = YOLO(resolved)
         except Exception as exc:
             raise DetectorError(
-                f"โหลดโมเดล {resolved!r} ไม่สำเร็จ: {exc}\n"
-                f"  ตรวจว่าไฟล์ .pt อยู่จริง หรือปล่อยให้ ultralytics ดาวน์โหลดเอง"
+                f"Failed to load model {resolved!r}: {exc}\n"
+                f"  Check that the .pt file exists, or let ultralytics download it"
             ) from exc
 
         self._tracker_config = tracker_config
@@ -169,7 +169,7 @@ class VehicleDetector:
                 verbose=False,
             )
         except Exception as exc:
-            raise DetectorError(f"รัน inference ไม่สำเร็จ: {exc}") from exc
+            raise DetectorError(f"Inference failed: {exc}") from exc
 
         if not results:
             return []

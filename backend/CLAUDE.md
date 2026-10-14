@@ -56,6 +56,7 @@ building storage for data that doesn't exist. See `docs/project-status.md`
 | `POST /api/traffic-state` | Receive one traffic-state window, validate, `emit("traffic_state", payload)` — ไม่แปลง payload |
 | `GET /api/stats` | Return current in-memory counters |
 | `POST /api/stats/reset` | Zero all counters (demo convenience) |
+| `POST /api/session/reset` | เริ่มรอบเดโมใหม่ — ล้างไฟล์ capture **และ** ตัวนับพร้อมกัน ai-worker เรียกอัตโนมัติก่อนส่งทุกครั้งที่ใช้ `replay --backend` |
 | `GET /health` | Uptime check |
 | `GET /` | Serve live dev dashboard (`backend/src/view/` — `index.html` + `styles.css` + `app.js`) **3 หน้า สลับด้วย URL hash**: `#overview` (สถานะปัจจุบัน + timeline + สรุป `/api/stats` + การ์ดต่อโซนพร้อม sparkline + feed ของ `spawn`) · `#state` (ตารางทุกหน้าต่างที่ได้รับ พร้อม occ/veh/mc และคำตัดสิน + สรุป % ต่อสถานะ) · `#json` (payload ดิบทั้ง 2 ช่อง กรองตามช่องได้). Dev-only, no auth, **ไม่พึ่ง CDN/ฟอนต์ภายนอก** (เซิร์ฟเวอร์ on-premise อาจไม่มีเน็ต) |
 
@@ -240,6 +241,7 @@ backend/
     ├── routes/
     │   ├── ingest.ts                ← POST /api/ingest handler (phase-aware)
     │   ├── stats.ts                 ← GET /api/stats, POST /api/stats/reset (Prototype)
+    │   ├── session.ts               ← POST /api/session/reset (ล้าง capture + counters)
     │   └── health.ts                ← GET /health handler
     ├── validation/
     │   ├── validateSpawnEvent.ts    ← Prototype schema validation (must have unit tests)

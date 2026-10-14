@@ -52,7 +52,7 @@ RTSP (CCTV) → YOLOv8 + ByteTrack → tracking ต่อคัน → payload (
 **เวอร์ชันนี้นับอย่างเดียว ไม่มี lane และไม่มี speed** (ดู §5 — เหตุผลที่ตัดออก)
 
 ```
-main.py  (อ่าน config.yaml)
+main.py  (อ่าน configs/<มุมกล้อง>.yaml)
   → detector.py  YOLOv8 + ByteTrack  (4 ชนิด: car / motorcycle / bus / truck)
   → counter.py   ข้ามเส้น → โหวตชนิด+ล็อก → ตรวจทิศ (toward/away) → กันนับซ้ำ → anomaly
   → emitter.py   spawn event → data/output_results/events.jsonl
@@ -80,17 +80,17 @@ COCO id → ชนิด: `2=car`, `3=motorcycle`, `5=bus`, `7=truck` — ส่
 ```
 data/{input_videos, output_results, weights}/   ← วิดีโอ / ผลลัพธ์ / ไฟล์โมเดล
 src/
-  main.py       อ่าน config.yaml + ลูปวิดีโอ + เขียนไฟล์ + สรุป                [cv2]
+  main.py       อ่านไฟล์ config + ลูปวิดีโอ + เขียนไฟล์ + สรุป                [cv2]
   detector.py   ครอบ YOLO.track() + ByteTrack → list[Detection]              [ultralytics]
   counter.py    geometry + VehicleCounter (แกนการนับ)                        [บริสุทธิ์]
-  config.py     โหลด config.yaml + auto_zones + validation                   [บริสุทธิ์]
+  config.py     โหลดไฟล์ config + auto_zones + validation                   [บริสุทธิ์]
   constants.py  ค่าคงที่ทั้งหมด (COCO map, ทิศ, เหตุผล, สี)                    [บริสุทธิ์]
   emitter.py    spawn event → events.jsonl                                   [บริสุทธิ์]
   poster.py     POST spawn event → backend/api/ingest (opt-in, fail-safe)     [httpx]
   overlay.py    วาดกล่อง/โซน/เส้น/HUD                                        [cv2]
   calibrate.py  เครื่องมือคลิกหาพิกัด polygon/line จากเฟรมจริง → print YAML     [cv2]
 tests/          test_counter.py, test_config.py, test_emitter.py, test_detector.py, test_poster.py
-config.yaml     ตั้งค่าทั้งหมด (path วิดีโอ, โมเดล, conf, imgsz, โซน)
+configs/*.yaml  ตั้งค่าทั้งหมดต่อมุมกล้อง (path วิดีโอ, โมเดล, conf, imgsz, โซน, เกณฑ์)
 ```
 
 `counter` / `emitter` / `config` / `constants` **ไม่ import cv2/torch/ultralytics โดยตั้งใจ**
@@ -105,7 +105,7 @@ config.yaml     ตั้งค่าทั้งหมด (path วิดีโ
 2. ⏳ **เพิ่ม lane + speed จริง** — งานแยกในอนาคต (ดู §5 ว่าทำไมยังไม่ทำตอนนี้)
 3. ✅ **Live bridge** (2026-08-12) — `poster.py` ส่ง spawn event เดียวกับที่เขียนลง
    `events.jsonl` เข้า `backend/api/ingest` แบบ real-time (ทีละ event ตอนข้ามเส้น) เปิดด้วย
-   `send_to_backend: true` ใน `config.yaml` (ปิดเป็นค่าเริ่มต้น) ทดสอบกับ backend ตัวจริงแล้ว —
+   `send_to_backend: true` ใน ไฟล์ config (ปิดเป็นค่าเริ่มต้น) ทดสอบกับ backend ตัวจริงแล้ว —
    spawn-event schema ตรงกับ `validateSpawnEvent()` ของ backend 100% ไม่ต้องแปลง field ใด ๆ
    backend ล่ม/ปฏิเสธไม่ทำให้การนับหยุด (log แล้วนับต่อ) ← *อยู่ตรงนี้*
 4. ⏳ **กำหนดโซนเอง + วัดความแม่นยำ** — ✅ เครื่องมือคลิก (`calibrate.py`) มีแล้ว เหลือ: นับมือเทียบ
@@ -134,12 +134,12 @@ spawn event ตรง ๆ ไม่ผ่านการจำลองตำแ
 
 ```bash
 cd ai-worker
-# แก้ path วิดีโอใน config.yaml ก่อน แล้วรัน:
-python -m src.main                      # ใช้ค่าจาก config.yaml
+# แก้ path วิดีโอในไฟล์ config ที่จะใช้ก่อน แล้วรัน:
+python -m src.main                      # ใช้ configs/event-2.yaml
 python -m src.main --config other.yaml  # ใช้ config อื่น (ตัวเลือก)
 ```
 
-ส่งเข้า backend ด้วย: ตั้ง `send_to_backend: true` ใน `config.yaml` แล้วรัน backend ไว้ก่อน
+ส่งเข้า backend ด้วย: ตั้ง `send_to_backend: true` ใน ไฟล์ config แล้วรัน backend ไว้ก่อน
 (`cd backend && npm run dev`) — ปิดเป็นค่าเริ่มต้น เปิดค้างไว้ก็ยังเขียน `events.jsonl` ปกติ
 
 เทส: `python -m pytest` · lint: `python -m ruff check .` · format: `python -m black --check .`
@@ -153,7 +153,7 @@ python -m src.main --config other.yaml  # ใช้ config อื่น (ตั�
 - Python 3.11, type hints ครบทุกฟังก์ชัน
 - format `black` (line-length 100, ตั้งใน `pyproject.toml`), lint `ruff check .` — รันก่อน commit ทุกครั้ง
 - ไม่มี global state — ส่ง config ผ่าน argument
-- ค่า tunable อยู่ใน `config.yaml`, ค่า invariant อยู่ใน `constants.py` — ห้าม hardcode ซ้ำ
+- ค่า tunable อยู่ใน ไฟล์ config, ค่า invariant อยู่ใน `constants.py` — ห้าม hardcode ซ้ำ
 
 ---
 
@@ -163,5 +163,5 @@ python -m src.main --config other.yaml  # ใช้ config อื่น (ตั�
 - **เชื่อมกับ backend แล้ว (§4 ขั้น 3) แต่ Unity ยังไม่รองรับ** — Unity ยังไม่มี handler รับ
   Socket.io event `"spawn"` และยังไม่มีโมเดล/prefab สำหรับ `type: "bus"`
 - **ยังไม่ได้นับมือเทียบวัดความแม่นยำ** — `calibrate.py` มีแล้ว (ขั้นตอน: `python -m src.calibrate`
-  → คลิก polygon+line ทีละ zone → ก็อป YAML ที่ print ออกมาใส่ `config.yaml`)
+  → คลิก polygon+line ทีละ zone → ก็อป YAML ที่ print ออกมาใส่ไฟล์ใน `configs/`)
 - **`architecture.md` §2** ยังเขียน "homography" อยู่ — ต้อง reconcile กับ pivot ภายหลัง

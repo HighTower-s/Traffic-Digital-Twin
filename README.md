@@ -81,8 +81,9 @@ are never committed) — set up locally:
 mkdir -p data/input_videos data/output_results data/weights
 ```
 
-- Put your own `.mp4` in `data/input_videos/`, then point `video:` in
-  `config.yaml` at it.
+- Put your own `.mp4` in `data/input_videos/`, then point `video:` at it in the
+  config file you're using — one file per camera angle under `configs/`
+  (see [`ai-worker/configs/README.md`](ai-worker/configs/README.md)).
 - `yolov8s.pt` doesn't need to be downloaded manually — `ultralytics` fetches it
   automatically on first run if `data/weights/` is empty.
 
@@ -99,10 +100,14 @@ if your card is older/different. No GPU → skip this, CPU-only still works, jus
 
 Run it:
 ```bash
-python -m src.main                 # writes data/output_results/{events.jsonl,counts.csv,anomalies.csv}
+python -m src.main                 # writes data/output_results/{events.jsonl,counts.csv,anomalies.csv,traffic_state.jsonl}
+python -m src.main --config configs/traffic-5.yaml   # another camera angle
+python -m src.main --replay        # detect, then classify + print verdicts in one go
 ```
-Set `send_to_backend: true` in `config.yaml` (off by default) to also POST each
-spawn-event to the running backend in real time.
+Default config is `configs/event-2.yaml`. Set `send_to_backend: true` in that
+file (off by default) to also POST each spawn-event to the running backend in
+real time. Traffic-state verdicts are sent by `python -m src.replay --backend`
+— see [`ai-worker/COMMANDS.md`](ai-worker/COMMANDS.md).
 
 ### 3. Unity
 
@@ -155,7 +160,7 @@ Connect to `ws://localhost:3000`.
 | File | Purpose |
 |---|---|
 | `backend/.env` | `PORT` (default 3000). MVP-only DB vars are commented out — unused in Prototype |
-| `ai-worker/config.yaml` | Video path, model, zones, `send_to_backend`, `backend_url` — not a `.env`, plain YAML |
+| `ai-worker/configs/*.yaml` | Video path, model, zones, thresholds, `send_to_backend`, `backend_url` — not a `.env`, plain YAML. One self-contained file per camera angle; default `configs/event-2.yaml` |
 
 **Never commit `.env` files.**
 

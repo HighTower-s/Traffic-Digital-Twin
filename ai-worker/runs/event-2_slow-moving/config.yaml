@@ -1,0 +1,43 @@
+# event-2 — กล้องสะพานลอย KMITL (วาดโค้งตามถนนจริง)
+#
+# ชุดโซน + เกณฑ์ของมุมกล้องนี้โดยเฉพาะ — เรียกใช้ด้วย `use: event-2` ใน config.yaml
+# **เกณฑ์ผูกกับโซน** ค่า occupancy ขึ้นกับขนาดกรอบและมุมกล้อง ย้ายข้ามไฟล์ไม่ได้
+# สถานะ: ใช้งานอยู่ · 1920x1080 60fps 3.4 นาที · ซ้าย=in (away) ขวา=out (toward)
+#         เกณฑ์ยังไม่ได้ยืนยันด้วยตา — busy_occupancy มาจากจุดที่ flow ร่วง (3.77 -> 4.19)
+
+video: data/input_videos/event-2.mp4
+
+traffic_state:
+  window_sec: 20
+  thresholds:
+    busy_occupancy: 4         # รถในกรอบเฉลี่ยเกินนี้ = หนาแน่น
+    standstill_flow: 2.0      # = รถยนต์ข้าม 0 คัน ใน 20 วินาที
+    slow_flow: 32.0           # = รถยนต์ข้าม 1-10 คัน ใน 20 วินาที
+
+# ---- ค่ารัน ----
+model: data/weights/yolov8s.pt
+camera_id: cam-chalongkrung-01
+
+imgsz: 1280
+conf: 0.35
+tracker: bytetrack.yaml       # bytetrack.yaml หรือ botsort.yaml (สลับ ID น้อยกว่า แต่ช้ากว่า)
+device: 0                     # auto | cpu | 0
+
+show_window: true
+max_frames: 0                 # 0 = ทั้งคลิป
+emit_preview: 20
+
+send_to_backend: true         # ส่ง spawn ตอน main (สถานะจราจรต้องใช้ replay --backend)
+backend_url: http://localhost:3000
+
+zones:
+  - name: in
+    expectedDirection: away
+    polygon: [[2, 576], [3, 1076], [460, 1072], [820, 704], [876, 488], [846, 339], [834, 288], [544, 294], [447, 388], [240, 472]]
+    line: [[309, 436], [884, 428]]
+    occupancyPolygon: [[566, 236], [834, 230], [873, 534], [458, 1078], [6, 1071], [4, 592], [306, 438], [466, 382]]
+  - name: out
+    expectedDirection: toward
+    polygon: [[778, 1076], [1916, 1074], [1912, 826], [1269, 351], [903, 363], [939, 682], [864, 921]]
+    line: [[1664, 633], [938, 651]]
+    occupancyPolygon: [[852, 232], [1119, 226], [1401, 472], [1917, 855], [1914, 1077], [794, 1070], [932, 720], [928, 472]]

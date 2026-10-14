@@ -26,6 +26,7 @@ class BackendPoster:
         base = backend_url.rstrip("/")
         self._url = f"{base}/api/ingest"
         self._state_url = f"{base}/api/traffic-state"
+        self._reset_url = f"{base}/api/session/reset"
         self._client = client or httpx.Client(timeout=timeout)
         self.sent = 0
         self.failed = 0
@@ -38,19 +39,40 @@ class BackendPoster:
         """ส่งสถานะจราจร (สรุปต่อช่วงเวลา) ไปคนละ endpoint กับ spawn event"""
         return self._post_to(self._state_url, payload)
 
+    def reset_session(self) -> bool:
+        """บอก backend ให้ล้างไฟล์ capture + ตัวนับ ก่อนเริ่มส่งรอบใหม่
+
+        ไม่งั้นรอบนี้จะต่อท้ายรอบก่อน — คลิป 100 คันกลายเป็นไฟล์ 200 บรรทัด
+        ไม่นับรวมใน self.sent/self.failed เพราะไม่ใช่ payload ของข้อมูลจราจร
+        """
+        try:
+            response = self._client.post(self._reset_url, json={})
+        except httpx.HTTPError as exc:
+            print(f"[poster] Cannot reset backend session ({self._reset_url}): {exc}", flush=True)
+            return False
+
+        if response.status_code != 200:
+            print(
+                f"[poster] Backend refused session reset ({response.status_code}): "
+                f"{response.text[:200]}",
+                flush=True,
+            )
+            return False
+        return True
+
     def _post_to(self, url: str, payload: dict[str, Any]) -> bool:
         """error ใด ๆ log แล้วคืน False — ปลายทางมีปัญหาต้องไม่ทำให้ทั้ง pipeline หยุด"""
         try:
             response = self._client.post(url, json=payload)
         except httpx.HTTPError as exc:
             self.failed += 1
-            print(f"[poster] ส่งเข้า backend ไม่ได้ ({url}): {exc}", flush=True)
+            print(f"[poster] Cannot reach backend ({url}): {exc}", flush=True)
             return False
 
         if response.status_code != 200:
             self.failed += 1
             print(
-                f"[poster] backend ปฏิเสธ ({response.status_code}): {response.text[:200]}",
+                f"[poster] Backend rejected ({response.status_code}): {response.text[:200]}",
                 flush=True,
             )
             return False

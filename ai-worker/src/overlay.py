@@ -84,7 +84,7 @@ def draw_hud(
 
     lines = [f"frame={frame_index}  fps={fps:.1f}  device={device}", *counter.summary_lines()]
     if warning:
-        lines.append(f"[เตือน] {warning}")
+        lines.append(f"[warn] {warning}")
 
     pad = 8
     line_height = 22
@@ -95,7 +95,7 @@ def draw_hud(
     cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
 
     for i, line in enumerate(lines):
-        color = COLOR_WARN if line.startswith("[เตือน]") else COLOR_HUD_TEXT
+        color = COLOR_WARN if line.startswith("[warn]") else COLOR_HUD_TEXT
         y = pad + line_height * i + 16
         cv2.putText(frame, line, (pad, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 

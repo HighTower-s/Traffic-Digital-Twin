@@ -1,0 +1,43 @@
+# event-1 — คลิปรถติดจากภายนอก (ไม่ใช่กล้อง KMITL)
+#
+# ชุดโซน + เกณฑ์ของมุมกล้องนี้โดยเฉพาะ — เรียกใช้ด้วย `use: event-1` ใน config.yaml
+# **เกณฑ์ผูกกับโซน** ค่า occupancy ขึ้นกับขนาดกรอบและมุมกล้อง ย้ายข้ามไฟล์ไม่ได้
+# สถานะ: ใช้ทดสอบบั๊กมอเตอร์ไซค์มุดรถติด · 1920x1080 25fps 21 วินาที · ถนนทางเดียว โซนเดียว
+#         occupancy 14-17 ซึ่งคนละสเกลกับกล้อง KMITL (0-11) เพราะคนละมุมกล้อง
+
+video: data/input_videos/bus.mp4
+
+traffic_state:
+  window_sec: 20
+  thresholds:
+    busy_occupancy: 3.0       # ยังไม่ได้จูนกับชุดนี้ — เป็นค่าเริ่มต้น
+    standstill_flow: 2.0
+    slow_flow: 12.0
+
+# ---- ค่ารัน ----
+model: data/weights/yolov8s.pt
+camera_id: cam-chalongkrung-01
+
+imgsz: 1280
+conf: 0.35
+tracker: bytetrack.yaml       # bytetrack.yaml หรือ botsort.yaml (สลับ ID น้อยกว่า แต่ช้ากว่า)
+device: 0                     # auto | cpu | 0
+
+show_window: true
+max_frames: 0                 # 0 = ทั้งคลิป
+emit_preview: 20
+
+send_to_backend: true         # ส่ง spawn ตอน main (สถานะจราจรต้องใช้ replay --backend)
+backend_url: http://localhost:3000
+
+zones:
+  - name: in
+    expectedDirection: away
+    polygon: [[69, 1818], [24, 894], [789, 516], [1263, 615]]
+    line: [[306, 744], [1074, 816]]
+    occupancyPolygon: [[825, 471], [18, 876], [18, 1878], [1332, 528]]
+  - name: out
+    expectedDirection: toward
+    polygon: [[417, 2124], [2970, 2115], [2142, 549], [1542, 522]]
+    line: [[675, 1677], [2898, 1767]]
+    occupancyPolygon: [[531, 2118], [2904, 2085], [2166, 594], [1491, 555]]

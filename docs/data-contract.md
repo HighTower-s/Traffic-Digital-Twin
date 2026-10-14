@@ -261,7 +261,7 @@ flow = 0 (`standstill`) — ค่ารวมบอก `standstill` ทั้�
 | **occupancy ต่ำ** | `normal` | — | `normal` (ถนนว่าง) |
 | **occupancy สูง** | `high_density` | `slow_moving` | `standstill` |
 
-เกณฑ์ตัวเลขปรับได้ใน `ai-worker/config.yaml` → `traffic_state.thresholds`
+เกณฑ์ตัวเลขปรับได้ใน `ai-worker/configs/<มุมกล้อง>.yaml` → `traffic_state.thresholds`
 **ค่าที่ได้ขึ้นกับขนาด `occupancyPolygon` ที่วาด** จึงต้องจูนใหม่ทุกครั้งที่เปลี่ยนมุมกล้อง
 
 Backend broadcast ต่อด้วย `emit("traffic_state", payload)` **โดยไม่แปลง payload**

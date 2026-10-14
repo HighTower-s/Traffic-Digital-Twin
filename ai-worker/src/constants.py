@@ -2,7 +2,7 @@
 
 บทเรียนจากโค้ดชุดก่อน (bug 2026-07-21): ค่าเดียวกันถูกเขียนไว้หลายที่แล้วหลุดกัน
 เวอร์ชันนี้จึงรวมค่า invariant (ไม่เปลี่ยนตามคลิป) ไว้ที่เดียว ส่วนค่าที่ปรับต่อคลิป
-(path วิดีโอ, conf, imgsz, ...) อยู่ใน config.yaml แทน
+(path วิดีโอ, conf, imgsz, ...) อยู่ใน ไฟล์ config แทน
 """
 
 from typing import Final
@@ -41,7 +41,7 @@ DIRECTIONS: Final[tuple[str, str]] = (DIRECTION_TOWARD, DIRECTION_AWAY)
 # **in/out มาจาก "ชื่อโซน" ไม่ใช่จาก toward/away** เพราะ toward/away บอกแค่ว่ารถเคลื่อนที่
 # ไปทางไหน "ในภาพ" ซึ่งขึ้นกับว่ากล้องหันทางไหน ไม่ได้บอกว่าเข้าหรือออกจากสถานที่จริง
 # กล้องคนละมุมจะให้คำตอบตรงข้ามกันทั้งที่เป็นถนนเส้นเดียวกัน — ผู้ตั้งค่าจึงเป็นคนบอกเอง
-# ผ่านชื่อโซนใน config.yaml (ดู emitter.to_spawn_event)
+# ผ่านชื่อโซนใน ไฟล์ config (ดู emitter.to_spawn_event)
 #
 # ไม่เสียข้อมูลอะไร: รถที่ข้ามผิดทิศถูกปฏิเสธไปแล้วตั้งแต่ counter (wrong_direction)
 # ดังนั้นรถที่นับได้ทุกคันมีทิศตรงกับ expectedDirection ของโซนตัวเองเสมอ
@@ -57,7 +57,7 @@ REASON_NO_TYPE_VOTES: Final[str] = "no_type_votes"
 
 # ---------------------------------------------------------------- ค่ารันเริ่มต้น
 
-# ใช้เป็นค่า default ถ้า config.yaml ไม่ได้ระบุ (override ได้ผ่าน config.yaml)
+# ใช้เป็นค่า default ถ้า ไฟล์ config ไม่ได้ระบุ (override ได้ผ่าน ไฟล์ config)
 DEFAULT_MODEL: Final[str] = "data/weights/yolov8s.pt"
 DEFAULT_TRACKER: Final[str] = "bytetrack.yaml"
 DEFAULT_IMGSZ: Final[int] = 640
@@ -99,7 +99,7 @@ TRAFFIC_STATES: Final[tuple[str, ...]] = (
     STATE_STANDSTILL,
 )
 
-# ค่าเริ่มต้น — override ได้ใน config.yaml ใต้ traffic_state:
+# ค่าเริ่มต้น — override ได้ใน ไฟล์ config ใต้ traffic_state:
 # **ยังไม่ได้จูนกับคลิปรถติดจริง** ตัวเลขวัดจาก traffic-5 (จราจรปกติ) คือ
 # occupancy 0.2-1.1 / flow 12-36 ด้วย polygon นับเดิม — ต้องวัดใหม่หลังวาด
 # occupancyPolygon ที่ครอบถนนยาวขึ้น

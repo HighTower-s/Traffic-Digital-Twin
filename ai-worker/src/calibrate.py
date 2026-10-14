@@ -1,6 +1,6 @@
 """เครื่องมือคลิกหาพิกัด polygon/line จากเฟรมจริงของวิดีโอ
 
-    python -m src.calibrate                                  ใช้ video: จาก config.yaml
+    python -m src.calibrate                                  ใช้ video: จากไฟล์ config
     python -m src.calibrate --video data/input_videos/x.mp4  หรือระบุเอง
     python -m src.calibrate --frame 90                       เลือกเฟรมอื่น (ค่าเริ่มต้น = 60)
     python -m src.calibrate --zones out                      วาดโซนเดียว (ถนนทางเดียว)
@@ -13,7 +13,7 @@
     r         = เริ่มรูปปัจจุบันใหม่
     q         = เลิกทั้งหมด
 
-จบแล้ว print YAML ที่พร้อมวางใน `zones:` ของ config.yaml — พิกัดที่ได้อ้างอิงตาม
+จบแล้ว print YAML ที่พร้อมวางใน `zones:` ของ ไฟล์ config — พิกัดที่ได้อ้างอิงตาม
 ขนาดเฟรมจริงของวิดีโอเสมอ ต่อให้หน้าต่างที่เห็นถูกย่อลงมาแสดงผล (ดู _to_frame_coords)
 """
 
@@ -30,8 +30,8 @@ from src.constants import DISPLAY_MAX_SIDE
 
 HERE = Path(__file__).parent
 AI_WORKER_ROOT = HERE.parent
-DEFAULT_CONFIG_PATH = AI_WORKER_ROOT / "config.yaml"
-WINDOW_NAME = "Calibrate (คลิก=เพิ่มจุด, Enter=จบรูป, u=undo, r=reset, q=เลิก)"
+DEFAULT_CONFIG_PATH = AI_WORKER_ROOT / "configs" / "event-2.yaml"
+WINDOW_NAME = "Calibrate (click=add point, Enter=finish, u=undo, r=reset, q=quit)"
 
 ZONE_PRESETS = (("in", "toward"), ("out", "away"))
 ZONE_DIRECTIONS = dict(ZONE_PRESETS)
@@ -41,32 +41,35 @@ TEXT_COLOR = (255, 255, 255)
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="คลิกหาพิกัด zones จากเฟรมจริงของวิดีโอ")
+    parser = argparse.ArgumentParser(
+        description="Click to pick zone coordinates from a real video frame"
+    )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
     parser.add_argument(
-        "--video", type=Path, default=None, help="ไม่ใส่ = ใช้ video: จาก config.yaml"
+        "--video", type=Path, default=None, help="omit to use video: from the config file"
     )
     parser.add_argument(
-        "--frame", type=int, default=60, help="เลขเฟรมที่จะดึงมาคลิก (ค่าเริ่มต้น 60)"
+        "--frame", type=int, default=60, help="frame number to grab for clicking (default 60)"
     )
     parser.add_argument(
         "--zones",
         default=",".join(name for name, _ in ZONE_PRESETS),
         help=(
-            "โซนที่จะ calibrate คั่นด้วย comma (ค่าเริ่มต้น 'in,out') — "
-            "ถนนทางเดียวหรือคลิปที่เห็นเลนฝั่งเดียว ใช้ '--zones out' อย่างเดียวได้"
+            "zones to calibrate, comma separated (default 'in,out') — "
+            "for a one-way road or a clip showing a single side, use '--zones out' alone"
         ),
     )
     parser.add_argument(
         "--preview",
         action="store_true",
-        help="ดูโซนที่ตั้งไว้ใน config.yaml ทับบนเฟรมจริง (ไม่วาดใหม่) — ตรวจก่อนรัน YOLO",
+        help="draw the configured zones over a real frame (no new drawing) "
+        "— check before running YOLO",
     )
     parser.add_argument(
         "--save",
         type=Path,
         default=None,
-        help="โหมด --preview: เซฟเป็นไฟล์ภาพแทนการเปิดหน้าต่าง",
+        help="--preview mode: save an image file instead of opening a window",
     )
     return parser.parse_args(argv)
 
@@ -75,10 +78,10 @@ def _selected_zones(spec: str) -> list[tuple[str, str]]:
     """แปลง '--zones out' เป็น [('out', 'away')] — พังดังถ้าใส่ชื่อที่ไม่รู้จัก"""
     names = [name.strip() for name in spec.split(",") if name.strip()]
     if not names:
-        raise SystemExit(f"--zones ว่างเปล่า ต้องระบุอย่างน้อย 1 โซน จาก {list(ZONE_DIRECTIONS)}")
+        raise SystemExit(f"--zones is empty — give at least 1 zone from {list(ZONE_DIRECTIONS)}")
     unknown = [name for name in names if name not in ZONE_DIRECTIONS]
     if unknown:
-        raise SystemExit(f"ไม่รู้จักโซน {unknown} — เลือกได้จาก {list(ZONE_DIRECTIONS)}")
+        raise SystemExit(f"Unknown zone {unknown} — choose from {list(ZONE_DIRECTIONS)}")
     return [(name, ZONE_DIRECTIONS[name]) for name in names]
 
 
@@ -86,11 +89,11 @@ def _resolve_video_path(args: argparse.Namespace) -> Path:
     if args.video is not None:
         return args.video
     if not args.config.exists():
-        raise SystemExit(f"[ผิดพลาด] ไม่พบ config: {args.config.resolve()}")
+        raise SystemExit(f"[error] Config not found: {args.config.resolve()}")
     raw = config.load_yaml_config(args.config)
     video = raw.get("video")
     if not video:
-        raise SystemExit(f"[ผิดพลาด] {args.config}: ไม่มี 'video' และไม่ได้ใส่ --video มาเอง")
+        raise SystemExit(f"[error] {args.config}: no 'video' set and no --video given")
     return AI_WORKER_ROOT / video
 
 
@@ -99,11 +102,11 @@ def _grab_frame(video_path: Path, frame_index: int) -> tuple[Any, tuple[int, int
     import cv2
 
     if not video_path.exists():
-        raise SystemExit(f"[ผิดพลาด] ไม่พบไฟล์วิดีโอ: {video_path.resolve()}")
+        raise SystemExit(f"[error] Video file not found: {video_path.resolve()}")
 
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
-        raise SystemExit(f"[ผิดพลาด] เปิดวิดีโอไม่ได้: {video_path.resolve()}")
+        raise SystemExit(f"[error] Cannot open video: {video_path.resolve()}")
 
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -116,7 +119,9 @@ def _grab_frame(video_path: Path, frame_index: int) -> tuple[Any, tuple[int, int
     cap.release()
 
     if frame is None:
-        raise SystemExit(f"[ผิดพลาด] อ่านไม่ถึงเฟรม {frame_index} (วิดีโอสั้นกว่านั้น)")
+        raise SystemExit(
+            f"[error] Cannot reach frame {frame_index} (the video is shorter than that)"
+        )
     return frame, (width, height)
 
 
@@ -190,14 +195,14 @@ def _collect_points(
 
     while True:
         canvas = _draw_overlay(
-            base_frame, session, f"{prompt}  (คลิกแล้ว {len(session.points)}/{min_points}+)"
+            base_frame, session, f"{prompt}  ({len(session.points)}/{min_points}+ points)"
         )
         cv2.imshow(WINDOW_NAME, canvas)
         key = cv2.waitKey(30) & 0xFF
 
         if key == ord("q"):
             cv2.destroyAllWindows()
-            raise SystemExit("[เลิก] ยกเลิกโดยผู้ใช้")
+            raise SystemExit("[aborted] cancelled by user")
         if key == ord("u"):
             session.undo()
         elif key == ord("r"):
@@ -206,7 +211,7 @@ def _collect_points(
             if len(session.points) >= min_points:
                 clicked = list(session.points)
                 break
-            print(f"  ต้องคลิกอย่างน้อย {min_points} จุดก่อนกด Enter")
+            print(f"  Click at least {min_points} points before pressing Enter")
 
     return clicked
 
@@ -216,7 +221,7 @@ PREVIEW_COLORS = ((0, 220, 255), (255, 170, 40), (140, 255, 140), (255, 130, 255
 
 
 def run_preview(args: argparse.Namespace) -> int:
-    """วาดโซนจาก config.yaml ทับเฟรมจริง — ตรวจว่าวางถูกก่อนเสียเวลารัน YOLO ทั้งคลิป"""
+    """วาดโซนจาก ไฟล์ config ทับเฟรมจริง — ตรวจว่าวางถูกก่อนเสียเวลารัน YOLO ทั้งคลิป"""
     import cv2
     import numpy as np
 
@@ -227,12 +232,12 @@ def run_preview(args: argparse.Namespace) -> int:
     try:
         cfg = config.build_run_config(raw, frame_size, args.config)
     except config.ConfigError as exc:
-        print(f"[ผิดพลาด] {exc}", file=sys.stderr)
+        print(f"[error] {exc}", file=sys.stderr)
         return 1
 
-    print(f"วิดีโอ: {video_path}  เฟรมที่: {args.frame}  ขนาด: {frame_size[0]}x{frame_size[1]}")
+    print(f"Video: {video_path}  frame: {args.frame}  size: {frame_size[0]}x{frame_size[1]}")
     if cfg.is_auto:
-        print("[เตือน] config.yaml ใช้ 'zones: auto' — ที่เห็นคือโซนที่เดาให้ ไม่ใช่ที่กำหนดเอง")
+        print("[warn] The config file uses 'zones: auto' — these are guessed zones, not your own")
 
     # ระบายสีลงภาพสำรองก่อน แล้วค่อยผสมกลับ เพื่อให้โซนโปร่งแสง (ยังเห็นถนนข้างใต้)
     overlay_frame = frame.copy()
@@ -247,8 +252,8 @@ def run_preview(args: argparse.Namespace) -> int:
 
         has_own = bool(zone.occupancy_polygon)
         print(
-            f"  {zone.name:>4} ({zone.expected_direction}): polygon {len(zone.polygon)} จุด, "
-            f"occupancyPolygon {'กำหนดเอง' if has_own else 'ไม่ได้กำหนด -> ใช้ polygon นับแทน'}"
+            f"  {zone.name:>4} ({zone.expected_direction}): polygon {len(zone.polygon)} points, "
+            f"occupancyPolygon {'custom' if has_own else 'not set -> uses the counting polygon'}"
         )
 
     cv2.addWeighted(overlay_frame, ZONE_FILL_ALPHA, frame, 1 - ZONE_FILL_ALPHA, 0, frame)
@@ -265,16 +270,19 @@ def run_preview(args: argparse.Namespace) -> int:
             cv2.LINE_AA,
         )
 
-    print("\nสี: โซนทึบ = occupancyPolygon (วัดความหนาแน่น) | ขาว = polygon นับ | แดง = เส้นนับ")
+    print(
+        "\nColours: filled = occupancyPolygon (density) | "
+        "white = counting polygon | red = counting line"
+    )
 
     display = overlay.resize_for_display(frame, overlay.fit_ratio(frame_size, DISPLAY_MAX_SIDE))
     if args.save:
         cv2.imwrite(str(args.save), display)
-        print(f"เซฟภาพไว้ที่: {args.save}")
+        print(f"Image saved to: {args.save}")
         return 0
 
-    print("กดปุ่มใดก็ได้บนหน้าต่างเพื่อปิด")
-    cv2.imshow("Zone preview (กดปุ่มใดก็ได้เพื่อปิด)", display)
+    print("Press any key on the window to close")
+    cv2.imshow("Zone preview (press any key to close)", display)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     return 0
@@ -294,24 +302,22 @@ def run(args: argparse.Namespace) -> int:
     import cv2
 
     cv2.namedWindow(WINDOW_NAME)
-    print(
-        f"วิดีโอ: {video_path}  ขนาดเฟรมจริง: {frame_size[0]}x{frame_size[1]}  เฟรมที่: {args.frame}"
-    )
-    print("คลิกซ้าย=เพิ่มจุด  Enter=จบรูป  u=undo  r=reset  q=เลิกทั้งหมด\n")
+    print(f"Video: {video_path}  frame size: {frame_size[0]}x{frame_size[1]}  frame: {args.frame}")
+    print("Left click=add point  Enter=finish shape  u=undo  r=reset  q=quit\n")
 
     zones_yaml: list[str] = []
     for name, direction in _selected_zones(args.zones):
         polygon = _collect_points(
-            display_frame, session, f"Zone '{name}': คลิก polygon (>=3 จุด)", 3
+            display_frame, session, f"Zone '{name}': click polygon (>=3 points)", 3
         )
-        line = _collect_points(display_frame, session, f"Zone '{name}': คลิก line (2 จุด)", 2)
+        line = _collect_points(display_frame, session, f"Zone '{name}': click line (2 points)", 2)
         # polygon ที่ 3 สำหรับวัดความหนาแน่น — ต้องครอบถนน "ยาวกว่า" polygon นับ
         # เพราะต้องเห็นแถวรถที่ต่อคิวอยู่ ไม่ใช่แค่บริเวณรอบเส้นนับ
         # (ยิ่งครอบยาว ยิ่งแยก "รถติดสนิท" ออกจาก "ถนนว่าง" ได้ชัด)
         occupancy = _collect_points(
             display_frame,
             session,
-            f"Zone '{name}': คลิก occupancyPolygon ครอบถนนยาว ๆ (>=3 จุด)",
+            f"Zone '{name}': click occupancyPolygon covering a long stretch of road (>=3 points)",
             3,
         )
         zones_yaml.append(_format_zone_yaml(name, direction, polygon, line, occupancy))
@@ -319,7 +325,7 @@ def run(args: argparse.Namespace) -> int:
     cv2.destroyAllWindows()
 
     print("\n" + "=" * 60)
-    print("ก็อปวางส่วนนี้ใส่ config.yaml (แทนที่ 'zones: auto'):\n")
+    print("Copy this into your config file (replacing the 'zones:' block):\n")
     print("zones:")
     for block in zones_yaml:
         print(block)

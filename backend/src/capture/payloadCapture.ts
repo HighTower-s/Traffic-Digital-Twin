@@ -37,7 +37,7 @@ export function capture(channel: string, payload: unknown): void {
     line = JSON.stringify(payload) + '\n';
   } catch (err) {
     console.warn(
-      `[capture] แปลง payload ของช่อง "${channel}" เป็น JSON ไม่ได้: ${(err as Error).message}`
+      `[capture] Cannot serialize payload for channel "${channel}" to JSON: ${(err as Error).message}`
     );
     return;
   }
@@ -45,12 +45,12 @@ export function capture(channel: string, payload: unknown): void {
   const file = path.join(OUTPUT_DIR, `${channel}.jsonl`);
   fs.mkdir(OUTPUT_DIR, { recursive: true }, (mkdirErr) => {
     if (mkdirErr) {
-      console.warn(`[capture] สร้างโฟลเดอร์ ${OUTPUT_DIR} ไม่ได้: ${mkdirErr.message}`);
+      console.warn(`[capture] Cannot create directory ${OUTPUT_DIR}: ${mkdirErr.message}`);
       return;
     }
     fs.appendFile(file, line, (err) => {
       // ล้มเงียบไม่ได้ — ถ้าเขียนไม่ได้ต้องรู้ว่าไฟล์ที่เห็นไม่ครบ
-      if (err) console.warn(`[capture] เขียน ${file} ไม่ได้: ${err.message}`);
+      if (err) console.warn(`[capture] Cannot write ${file}: ${err.message}`);
     });
   });
 }
@@ -65,6 +65,6 @@ export function resetCaptureFiles(channels: readonly string[]): void {
       fs.writeFileSync(path.join(OUTPUT_DIR, `${channel}.jsonl`), '');
     }
   } catch (err) {
-    console.warn(`[capture] ล้างไฟล์เดิมไม่สำเร็จ: ${(err as Error).message}`);
+    console.warn(`[capture] Failed to clear previous capture files: ${(err as Error).message}`);
   }
 }

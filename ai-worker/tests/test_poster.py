@@ -117,3 +117,46 @@ def test_context_manager_closes_on_exit():
     with BackendPoster("http://localhost:3000", client=client) as poster:
         poster.post(PAYLOAD)
     assert client.is_closed
+
+
+# --- reset_session ------------------------------------------------------------
+
+
+def test_reset_session_posts_to_session_reset_endpoint():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(200, json={"ok": True, "cleared": ["spawn", "stats"]})
+
+    assert make_poster(handler).reset_session() is True
+    assert seen == ["http://localhost:3000/api/session/reset"]
+
+
+def test_reset_session_does_not_count_as_a_sent_payload():
+    """ตัวนับ sent/failed ใช้สรุปจำนวน payload จราจร การล้างไม่ใช่ payload"""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"ok": True})
+
+    poster = make_poster(handler)
+    poster.reset_session()
+    assert (poster.sent, poster.failed) == (0, 0)
+
+
+def test_reset_session_returns_false_when_backend_is_down():
+    """backend ล่มต้องไม่ทำให้ทั้ง replay พัง — แค่คืน False ให้ผู้เรียกเตือนผู้ใช้"""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused")
+
+    assert make_poster(handler).reset_session() is False
+
+
+def test_reset_session_returns_false_on_non_200():
+    """backend รุ่นเก่าที่ยังไม่มี endpoint นี้จะตอบ 404"""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, text="Not Found")
+
+    assert make_poster(handler).reset_session() is False

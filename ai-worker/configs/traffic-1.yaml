@@ -1,0 +1,42 @@
+# traffic-1 — กล้อง KMITL มุมเดิม (4K)
+#
+# ชุดโซน + เกณฑ์ของมุมกล้องนี้โดยเฉพาะ — เรียกใช้ด้วย `use: traffic-1` ใน config.yaml
+# **เกณฑ์ผูกกับโซน** ค่า occupancy ขึ้นกับขนาดกรอบและมุมกล้อง ย้ายข้ามไฟล์ไม่ได้
+# สถานะ: เก็บไว้อ้างอิง · 3840x2160 30fps 34 วินาที
+
+video: data/input_videos/traffic-1.mp4
+
+traffic_state:
+  window_sec: 20
+  thresholds:
+    busy_occupancy: 3.0       # ยังไม่ได้จูนกับชุดนี้ — เป็นค่าเริ่มต้น
+    standstill_flow: 2.0
+    slow_flow: 12.0
+
+# ---- ค่ารัน ----
+model: data/weights/yolov8s.pt
+camera_id: cam-chalongkrung-01
+
+imgsz: 1280
+conf: 0.35
+tracker: bytetrack.yaml       # bytetrack.yaml หรือ botsort.yaml (สลับ ID น้อยกว่า แต่ช้ากว่า)
+device: 0                     # auto | cpu | 0
+
+show_window: true
+max_frames: 0                 # 0 = ทั้งคลิป
+emit_preview: 20
+
+send_to_backend: true         # ส่ง spawn ตอน main (สถานะจราจรต้องใช้ replay --backend)
+backend_url: http://localhost:3000
+
+zones:
+  - name: in
+    expectedDirection: toward
+    polygon: [[2181, 1575], [3300, 1551], [2625, 1038], [2052, 1053]]
+    line: [[2109, 1272], [2967, 1287]]
+    occupancyPolygon: [[2190, 1554], [3330, 1563], [2307, 798], [1986, 810]]
+  - name: out
+    expectedDirection: away
+    polygon: [[1818, 1524], [1863, 981], [1353, 954], [723, 1485]]
+    line: [[1197, 1077], [1848, 1080]]
+    occupancyPolygon: [[1833, 1545], [1890, 762], [1584, 747], [702, 1512]]

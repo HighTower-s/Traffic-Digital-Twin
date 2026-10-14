@@ -112,7 +112,7 @@ def test_custom_zones_reject_empty_list():
 
 
 def test_custom_zones_reject_duplicate_names():
-    with pytest.raises(ConfigError, match="ซ้ำ"):
+    with pytest.raises(ConfigError, match="duplicate zone name"):
         build_run_config(base_raw(zones=[VALID_ZONE, VALID_ZONE]), FRAME_SIZE, FAKE_PATH)
 
 
@@ -136,19 +136,19 @@ def test_custom_zones_reject_line_with_wrong_point_count():
 
 def test_custom_zones_reject_zero_length_line():
     bad = {**VALID_ZONE, "line": [[10, 100], [10, 100]]}
-    with pytest.raises(ConfigError, match="ศูนย์"):
+    with pytest.raises(ConfigError, match="zero length"):
         build_run_config(base_raw(zones=[bad]), FRAME_SIZE, FAKE_PATH)
 
 
 def test_custom_zones_reject_near_vertical_line():
     bad = {**VALID_ZONE, "line": [[100, 0], [101, 200]]}
-    with pytest.raises(ConfigError, match="ดิ่ง"):
+    with pytest.raises(ConfigError, match="nearly vertical"):
         build_run_config(base_raw(zones=[bad]), FRAME_SIZE, FAKE_PATH)
 
 
 def test_custom_zones_reject_line_outside_polygon():
     bad = {**VALID_ZONE, "line": [[1000, 1000], [1100, 1000]]}
-    with pytest.raises(ConfigError, match="นอก polygon"):
+    with pytest.raises(ConfigError, match="outside its own polygon"):
         build_run_config(base_raw(zones=[bad]), FRAME_SIZE, FAKE_PATH)
 
 
