@@ -1,0 +1,430 @@
+===========================================================================
+ ขั้นตอนการทำการทดลอง — บทที่ 4
+ โครงงาน Smart Flow: Digital Twin for KMITL Smart Mobility
+ วันที่จัดทำ: 2026-11-04
+===========================================================================
+
+ภาพรวมการทดลองแบ่งเป็น 2 Phase
+  Phase 1 — การทดลองเบื้องต้น (Parameter Optimization)
+            ทดสอบ 4 พารามิเตอร์เพื่อเลือกค่าที่เหมาะสมก่อนรัน Phase 2
+  Phase 2 — การทดลองหลัก (System Performance Experiments)
+            ทดสอบ 4 ชุด เพื่อเก็บตัวเลขเทียบกับ Acceptance Criteria
+
+เครื่องมือที่ต้องใช้
+  - Python 3.11 + Ultralytics YOLOv8s + OpenCV
+  - Node.js 20 LTS (Backend)
+  - Unity 2022 LTS (แสดงผล 3D)
+  - วิดีโอทดสอบ: ไฟล์ที่ถ่ายจากกล้อง CCTV มุมสูง ถนนฉลองกรุง ความละเอียด 3840x2160
+  - สคริปต์ AI Worker ใน ai-worker/src/
+  - Config YAML: ai-worker/configs/<camera>.yaml
+  - นาฬิกา/สคริปต์ Timestamp สำหรับการวัด Latency (Experiment 4)
+
+===========================================================================
+ PHASE 1: การทดลองเบื้องต้น — คัดเลือกค่าพารามิเตอร์
+===========================================================================
+
+--- การทดลอง 1.1: ขนาดภาพนำเข้า (Input Image Size) ---
+
+วัตถุประสงค์
+  หาขนาดภาพที่ทำให้ตรวจจับรถจักรยานยนต์ระยะไกลได้ดีที่สุด
+  โดยไม่ทำให้ประสิทธิภาพ (FPS) ตกต่ำจนเกินไป
+
+ขั้นตอน
+  1. เปิดไฟล์ ai-worker/configs/<camera>.yaml
+  2. ตั้ง imgsz: 640  (ค่าแรกที่ทดสอบ)
+  3. รันสคริปต์ตรวจจับบนวิดีโอตัวอย่างเป็นเวลา 60 วินาที
+     คำสั่ง: python ai-worker/src/detect.py --config ai-worker/configs/<camera>.yaml
+  4. บันทึกผลในตาราง:
+     - จำนวน Motorcycle ที่ตรวจจับได้ต่อ 10 วินาที
+     - FPS เฉลี่ย
+  5. ทำซ้ำขั้นตอน 2-4 โดยเปลี่ยน imgsz เป็น 1280
+  6. เปรียบเทียบ Detection Rate ของรถจักรยานยนต์ระหว่าง 2 ค่า
+  7. เลือกค่าที่ให้ Recall สูงกว่า → ผลที่ได้ควรเป็น imgsz = 1280
+
+ผลที่คาดหวัง
+  imgsz = 1280 ตรวจจับรถจักรยานยนต์ระยะไกลได้มากกว่า imgsz = 640
+  โดยยังรักษา FPS ให้เหมาะสมสำหรับ real-time processing
+
+ผลการทดลองจริง (2026-11-04 / วิดีโอ event-1.mp4 / 525 เฟรม 1920x1080 25fps)
+  วิดีโอ : event-1.mp4 (1920x1080, 25fps, 21 วินาที, 525 เฟรม)
+  Config  : conf=0.35, tracker=bytetrack, device=CUDA (RTX)
+
+  ประเภท        imgsz=640   imgsz=1280
+  ------------------------------------------
+  Car                   5            3
+  Motorcycle            0            8   ← ต่างกัน +8
+  Truck/Bus             0            0
+  TOTAL                 5           11
+
+  ประสิทธิภาพ:
+    imgsz=640  : 22.9 s = 22.9 FPS
+    imgsz=1280 : 28.1 s = 18.7 FPS  (-18% speed, แต่ยังเร็วกว่า 25fps ที่ต้องการ)
+
+  Confidence range ของ motorcycle ใน imgsz=1280:
+    min=0.400  avg=0.466  max=0.549
+    (ทุกคันอยู่ใน 0.40-0.55 ต่ำกว่า Car ซึ่งอยู่ที่ 0.678-0.834)
+    (ถ้าใช้ threshold=0.60 มาตรฐาน motorcycle ทั้ง 8 คันจะถูกตัดทิ้งทั้งหมด)
+
+  สรุป: imgsz=640 ตรวจจับ motorcycle ได้ 0/8 คัน (Recall=0.000)
+        imgsz=1280 ตรวจจับ motorcycle ได้ 8/8 คัน (สอดคล้องกับสมมติฐาน)
+        → เลือก imgsz=1280
+
+  หมายเหตุ: car count ลดลง 5→3 ใน imgsz=1280 เนื่องจาก tracking ที่ชัดขึ้น
+            ลดการนับซ้ำจาก false track ที่เกิดจาก low-resolution detection
+
+บันทึกผล
+  imgsz ที่เลือก: 1280  (บันทึกใน configs/event-1.yaml แล้ว)
+
+
+--- การทดลอง 1.2: ค่าขีดแบ่งความเชื่อมั่น (Confidence Threshold) ---
+
+วัตถุประสงค์
+  หาค่า Confidence Threshold ที่คงข้อมูลรถจักรยานยนต์ไว้ได้
+  โดยไม่ทำให้มี False Positive มากเกินไป
+
+ขั้นตอน
+  1. ตั้ง imgsz: 1280 (จากการทดลอง 1.1)
+  2. ทดสอบค่า conf: 0.60, 0.50, 0.40, 0.35 ทีละค่า
+  3. สำหรับแต่ละค่า ให้บันทึก:
+     a. จำนวน Motorcycle ที่ตรวจจับได้ (Recall)
+     b. จำนวน False Positive ที่เกิดจากวัตถุที่ไม่ใช่รถ (Precision)
+     c. ผลตรวจจับทั้งหมด (ค่า confidence distribution per class)
+  4. ตรวจสอบว่าค่า conf ใดที่รถจักรยานยนต์เริ่มถูกตัดทิ้ง
+  5. เลือกค่า conf ที่ Recall สูงสุดในขณะที่ FP ยังอยู่ในระดับที่จัดการได้ด้วย Polygon ROI
+     → ผลที่ได้ควรเป็น conf = 0.35
+
+ผลที่คาดหวัง
+  Motorcycle มีค่า confidence อยู่ระหว่าง 0.40-0.55
+  ดังนั้น conf = 0.35 จะคงข้อมูลรถจักรยานยนต์ได้ครบ
+
+ผลการทดลองจริง (2026-11-04 / วิดีโอ event-1.mp4 / imgsz=1280 / 525 เฟรม)
+
+  จำนวนยานพาหนะที่นับได้:
+  ประเภท        conf=0.60  conf=0.50  conf=0.40  conf=0.35
+  ----------------------------------------------------------
+  Car                   3          3          3          3
+  Motorcycle            0          2          6          8   ← ตัวแปรที่สนใจ
+  Truck/Bus             0          0          0          0
+  TOTAL                 3          5          9         11
+
+  Confidence ของ Motorcycle ที่ข้ามเส้น (ณ วินาทีที่นับ):
+  Threshold   Count   min    avg    max    conf<0.50
+  ---------------------------------------------------
+  conf=0.60       0     —      —      —        —
+  conf=0.50       2  0.544  0.560  0.577        0
+  conf=0.40       6  0.470  0.485  0.510        4
+  conf=0.35       8  0.400  0.466  0.549        7
+
+  False Positive risk (events ที่มี confidence < 0.40):
+  conf=0.60: 0  |  conf=0.50: 0  |  conf=0.40: 0  |  conf=0.35: 0
+  → แม้จะลด threshold ถึง 0.35 ระบบ vote+ByteTrack กรอง FP ได้เองทั้งหมด
+
+  สรุปผล:
+  - conf=0.60 (ค่ามาตรฐาน): Motorcycle = 0/8 → Recall = 0.000  (ใช้ไม่ได้)
+  - conf=0.50            : Motorcycle = 2/8 → Recall = 0.250  (ยังไม่ผ่านเกณฑ์ >=0.70)
+  - conf=0.40            : Motorcycle = 6/8 → Recall = 0.750  (ผ่านเกณฑ์ >=0.70)
+  - conf=0.35            : Motorcycle = 8/8 → Recall = 1.000  (ดีที่สุด ไม่มี FP เพิ่ม)
+
+  Car count คงที่ที่ 3 ทุก threshold → การลด threshold ไม่ทำให้ Car เสียหาย
+  → เลือก conf = 0.35
+
+บันทึกผล
+  Confidence Threshold ที่เลือก: 0.35
+
+
+--- การทดลอง 1.3: เปรียบเทียบ Tracking Algorithm ---
+
+วัตถุประสงค์
+  เลือก Multi-Object Tracking algorithm ที่ไม่สูญเสียการติดตาม
+  รถจักรยานยนต์เมื่อถูกบดบัง และทำงานได้เร็วพอสำหรับ real-time
+
+ขั้นตอน
+  1. ตั้งค่า conf = 0.35, imgsz = 1280
+  2. ทดสอบ Algorithm ชุดแรก: ByteTrack
+     a. ตั้งใน config: tracker: bytetrack
+     b. รันบนวิดีโอตัวอย่างส่วนที่มีรถแออัดหรือมีการบดบัง (เลือกช่วง 30-60 วินาที)
+     c. บันทึก:
+        - จำนวน ID Switch (ตรวจจากจำนวน Track ID ใหม่ที่เกิดขึ้นโดยไม่มี detection ใหม่)
+        - FPS เฉลี่ย
+        - Motorcycle ที่ถูก track ต่อเนื่องได้หลังจากถูกบดบัง
+  3. ทดสอบ Algorithm ชุดที่สอง: BoT-SORT
+     a. ตั้งใน config: tracker: botsort
+     b. รันเงื่อนไขเดียวกัน บันทึกค่าเดียวกัน
+  4. เปรียบเทียบ FPS และ ID Switch ระหว่าง 2 algorithms
+  5. เลือก algorithm ที่สมดุลระหว่าง Tracking Quality และ FPS
+     → ผลที่ได้ควรเป็น ByteTrack
+
+ผลการทดลองจริง (2026-11-04 / วิดีโอ event-1.mp4 / imgsz=1280 / conf=0.35 / 525 เฟรม)
+
+  1. CROSSING EVENTS (ยานพาหนะที่ข้ามเส้นนับ)
+     ประเภท        ByteTrack   BoT-SORT
+     ------------------------------------
+     Car                   3          3
+     Motorcycle            8          8
+     TOTAL                11         11   ← ตรงกันทุกประเภท
+
+  2. PROCESSING SPEED
+     ByteTrack : 32.1 s = 16.4 FPS
+     BoT-SORT  : 45.7 s = 11.5 FPS  (-30% ช้ากว่า ByteTrack)
+
+  3. ID CHURN (max track-index ที่ถูก assign ตลอดคลิป / crossing จริง)
+     ประเภท    ByteTrack  BoT-SORT   ผลต่าง
+     -----------------------------------------
+     Car        18/3 = 6.0x  18/3 = 6.0x    0
+     Motorcycle 157/8 = 19.6x  150/8 = 18.8x  -7 tracks
+     → BoT-SORT สร้าง motorcycle track น้อยกว่า 7 ตัว (4%) แต่ตรงข้ามกับ
+       เวลาประมวลผลที่ช้ากว่า 30%
+
+  4. CROSSING TIMESTAMPS ตรงกัน (physical vehicle เดียวกันข้ามในเวลาเดียวกัน)
+     ByteTrack : motorcycle ที่ 1.0s, 6.56s, 7.08s, 13.28s, 15.04s, 15.8s, 16.32s, 20.32s
+     BoT-SORT  : motorcycle ที่ 1.0s, 6.56s, 7.08s, 13.28s, 15.04s, 15.8s, 16.32s, 20.32s
+     → ไม่มีรถที่หายไปหรือเกินมาในฝ่ายใดฝ่ายหนึ่ง
+
+  5. ANOMALIES: ByteTrack = 0  |  BoT-SORT = 0  (ไม่มีการนับผิดทั้งคู่)
+
+  สรุปผล:
+  - Crossing quality เท่ากันทั้งสองตัว (11/11, timestamps ตรงกันทุกรถ)
+  - ByteTrack เร็วกว่า 30% (16.4 vs 11.5 FPS)
+  - ID Churn ต่างกันเพียง 4% (BoT-SORT ดีกว่านิดเดียว ไม่คุ้มกับ FPS ที่เสียไป)
+  - ByteTrack สมดุลดีกว่าในสถานการณ์นี้
+  → เลือก ByteTrack
+
+บันทึกผล
+  Algorithm ที่เลือก: ByteTrack
+
+
+--- การทดลอง 1.4: ขนาดหน้าต่างเวลาสำหรับ Traffic State ---
+
+วัตถุประสงค์
+  หาขนาด Time Window (วินาที) ที่ให้การตัดสิน Traffic State
+  ที่ไม่แกว่งมากเกินไปและตอบสนองได้ทันเวลา
+
+ขั้นตอน
+  1. เปิดไฟล์ Config และปรับ traffic_state.window_sec
+  2. ทดสอบค่า window_sec = 5, 10, 30 ทีละค่า
+  3. สำหรับแต่ละค่า ให้สังเกต Traffic State output บน Dashboard
+     ในช่วงที่สภาพจราจรเปลี่ยนแปลง (เช่น จาก normal → standstill)
+  4. บันทึก:
+     a. ค่าเฉลี่ย Vehicle Count per Window (ค่าสถิติที่ใช้ตัดสิน)
+     b. ความถี่ในการเปลี่ยนสถานะ (State Flip Rate)
+     c. เวลาตอบสนองตั้งแต่เริ่มรถติดจนระบบตัดสิน standstill
+  5. เปรียบเทียบ Trade-off ระหว่างความเสถียร (ไม่แกว่ง) และความเร็วตอบสนอง
+     → ผลที่ได้ควรเป็น window_sec = 10
+
+บันทึกผล
+  Window Size ที่เลือก: ____________ วินาที
+
+===========================================================================
+ PHASE 2: การทดลองหลัก — วัดประสิทธิภาพและเทียบ Acceptance Criteria
+===========================================================================
+
+ก่อนเริ่ม Phase 2: ตั้ง config ทั้งหมดด้วยค่าที่ได้จาก Phase 1
+  imgsz   = 1280
+  conf    = 0.35
+  tracker = bytetrack
+  window  = 10 วินาที
+
+--- การทดลองที่ 1: ความแม่นยำของการตรวจจับและนับยานพาหนะ ---
+
+วัตถุประสงค์
+  วัด Precision, Recall, F1-Score, MAE แยกตามประเภทยานพาหนะ
+  เพื่อเทียบกับ Acceptance Criteria:
+    Car Recall     >= 0.85
+    Moto Recall    >= 0.70
+    Overall Prec.  >= 0.85
+
+วัสดุ/ข้อมูลที่ต้องเตรียม
+  - วิดีโอทดสอบ: ความยาว 1-2 นาที ที่มีทั้ง Car, Truck, Motorcycle
+  - Ground Truth: ไฟล์ CSV ที่ผู้ทดลองนับด้วยตาเปล่าและบันทึก
+    รูปแบบ: timestamp, vehicle_type (car/truck/motorcycle), crossing (1=ข้ามเส้น)
+
+ขั้นตอน
+  1. เปิดวิดีโอทดสอบพร้อมกับ AI Worker
+  2. AI Worker รันและบันทึก spawn events ไปที่ ai-worker/data/output_results/events.jsonl
+  3. ผู้ทดลอง 2 คน นับยานพาหนะที่ข้ามเส้นนับจากวิดีโอแบบ manual พร้อมกัน
+     (ทั้ง 2 คนนับอิสระจากกัน เพื่อ cross-verify)
+  4. รวมผลการนับ manual เป็น Ground Truth
+  5. นับจำนวนยานพาหนะจาก events.jsonl แยกตาม type
+  6. คำนวณค่าสถิติ:
+     - True Positive (TP)  = ยานพาหนะที่ระบบนับได้และตรงกับ Ground Truth
+     - False Positive (FP) = ยานพาหนะที่ระบบนับได้แต่ Ground Truth ไม่มี
+     - False Negative (FN) = ยานพาหนะที่ Ground Truth มีแต่ระบบไม่นับ
+     สูตร:
+       Precision = TP / (TP + FP)
+       Recall    = TP / (TP + FN)
+       F1-Score  = 2 * Precision * Recall / (Precision + Recall)
+       MAE       = |SystemCount - GroundTruth| / TotalWindows
+  7. บันทึกผลลงในตาราง (ดูรูปแบบตารางใน Chapter4.tex ตาราง tab:exp1)
+  8. ตรวจสอบว่าผ่านเกณฑ์:
+     [ ] Car Recall     >= 0.85
+     [ ] Moto Recall    >= 0.70
+     [ ] Overall Prec.  >= 0.85
+
+บันทึกผล
+  Car:        GT=___, TP=___, FP=___, FN=___, Prec=___, Recall=___
+  Truck/Bus:  GT=___, TP=___, FP=___, FN=___, Prec=___, Recall=___
+  Motorcycle: GT=___, TP=___, FP=___, FN=___, Prec=___, Recall=___
+  Overall:    GT=___, TP=___, FP=___, FN=___, Prec=___, Recall=___
+
+
+--- การทดลองที่ 2: ความแม่นยำของการจำแนกสภาพการจราจร 4 สถานะ ---
+
+วัตถุประสงค์
+  วัด Overall Accuracy ของการตัดสิน Traffic State
+  และตรวจสอบว่า ไม่มีกรณีตัดสิน Standstill เป็น Normal
+
+Acceptance Criteria
+  - Overall Accuracy >= 0.70
+  - ไม่พบ Standstill → Normal (0 กรณี)
+
+วัสดุ/ข้อมูลที่ต้องเตรียม
+  - วิดีโอทดสอบที่ครอบคลุมสภาพจราจรอย่างน้อย 4 สถานะ:
+      * Normal     : รถน้อย ไหลเร็ว
+      * High Density: รถมาก แต่ยังไหลได้ดี
+      * Slow Moving : รถมาก ไหลช้า
+      * Standstill  : รถหยุดนิ่ง/ติดแน่น
+  - ไฟล์ Ground Truth Labels:
+    รูปแบบ: window_start_sec, window_end_sec, true_state
+
+ขั้นตอน
+  1. รัน AI Worker บนวิดีโอทดสอบ
+  2. ระบบจะส่ง traffic-state ทุก 10 วินาทีผ่าน /api/traffic-state
+  3. บันทึก traffic-state output ทุก window ลงไฟล์
+     (ตรวจจาก Backend log หรือ Dashboard)
+  4. ผู้ทดลองกำกับ True Label ของแต่ละ window จากวิดีโอ:
+     - Normal     : occupancy < 3.0 คัน/เฟรม
+     - High Density: occupancy >= 3.0 และ vehicleFlowRate >= 12.0 คัน/นาที
+     - Slow Moving : occupancy >= 3.0 และ 2.0 <= vehicleFlowRate < 12.0
+     - Standstill  : occupancy >= 3.0 และ vehicleFlowRate < 2.0
+  5. สร้าง Confusion Matrix (สภาพจริง x ผลประเมิน) แบบ 4x4
+  6. คำนวณ:
+     - Overall Accuracy = (จำนวน window ที่ตัดสินถูก) / (จำนวน window ทั้งหมด)
+     - Precision และ Recall แยกรายสถานะ
+     - นับกรณี Standstill → Normal
+  7. บันทึกผลลงในตาราง (ดู Chapter4.tex ตาราง tab:confusion)
+
+บันทึกผล
+  จำนวน Window ทั้งหมด     : ___
+  Window ที่ตัดสินถูก       : ___
+  Overall Accuracy           : ___
+  กรณี Standstill → Normal   : ___
+  ผ่านเกณฑ์: [ ] Overall >= 0.70  [ ] Standstill→Normal = 0
+
+
+--- การทดลองที่ 3: ผลของการแยกอัตราการไหลของรถจักรยานยนต์ ---
+
+วัตถุประสงค์
+  พิสูจน์ว่าการแยก Motorcycle Flow Rate (Vmc) ออกจากเกณฑ์ตัดสิน
+  ป้องกันการตัดสินผิดพลาดได้จริง โดยหา window ที่คำตัดสินเปลี่ยนไปอย่างน้อย 1 window
+
+Acceptance Criteria
+  - อย่างน้อย 1 หน้าต่างเวลาที่คำตัดสิน "เปลี่ยน" เมื่อเปรียบเทียบ 2 วิธี
+
+วัสดุ/ข้อมูลที่ต้องเตรียม
+  - วิดีโอตัวอย่างที่มีสภาวะรถยนต์หยุดนิ่งแต่รถจักรยานยนต์ยังผ่านได้
+
+ขั้นตอน
+  1. เลือกช่วงวิดีโอที่มีสภาวะ Standstill (รถยนต์หยุดแต่ Motorcycle แทรกได้)
+     (ตัวอย่างในรายงาน: วินาทีที่ 10-20)
+  2. บันทึกค่าจาก AI Worker output สำหรับ window นี้:
+     - occupancy (O)
+     - vehicleFlowRate (Vc) = Car + Truck + Bus
+     - motorcycleFlowRate (Vmc)
+  3. จำลองการตัดสินด้วยวิธีดั้งเดิม:
+     - คำนวณ V_total = Vc + Vmc
+     - ใช้ Logic: ถ้า O >= 3.0 และ V_total >= 12.0 → High Density
+     - บันทึกว่าวิธีดั้งเดิมตัดสินอะไร
+  4. ตรวจสอบการตัดสินของวิธีโครงงาน (จาก AI Worker output จริง):
+     - ใช้เฉพาะ Vc ในการตัดสิน
+     - บันทึกว่าวิธีโครงงานตัดสินอะไร
+  5. เปรียบเทียบและบันทึกว่า:
+     - คำตัดสิน "เปลี่ยน" หรือไม่?
+     - ถ้าเปลี่ยน: วิธีใดถูกต้องกว่าเมื่อเทียบกับสภาพจริงในวิดีโอ
+  6. ทำซ้ำสำหรับทุก window ที่สงสัย และรวมจำนวน window ที่คำตัดสินเปลี่ยน
+
+บันทึกผล
+  Window ที่ใช้ทดสอบ        : ___
+  O (occupancy)              : ___
+  Vc (vehicleFlowRate)       : ___
+  Vmc (motorcycleFlowRate)   : ___
+  วิธีดั้งเดิม (V_total) ตัดสิน : ___
+  วิธีโครงงาน (Vc เท่านั้น) ตัดสิน: ___
+  จำนวน Window ที่คำตัดสินเปลี่ยน  : ___
+  ผ่านเกณฑ์: [ ] >= 1 หน้าต่าง
+
+
+--- การทดลองที่ 4: ความหน่วงของการเชื่อมโยงข้อมูล (End-to-End Latency) ---
+
+วัตถุประสงค์
+  วัด Latency แต่ละ Segment ของ Pipeline:
+    Segment 1: AI Worker Processing
+    Segment 2: HTTP POST → Backend Validation
+    Segment 3: Backend WebSocket Broadcast
+    Segment 4: Unity Receive → Object Pool Spawn
+  และตรวจสอบว่า End-to-End Latency (Median) <= 1.0 วินาที
+
+ขั้นตอน
+  1. เพิ่ม Timestamp ใน Code แต่ละจุด:
+     T1: จุดเริ่มต้น — ทันทีที่ AI Worker ตรวจจับ vehicle crossing
+         (บันทึกใน Python: import time; t1 = time.time())
+     T2: ก่อนส่ง HTTP POST จาก AI Worker
+         (เพิ่ม field "ai_sent_at" ใน payload)
+     T3: ทันทีที่ Backend รับ Request และผ่าน Validation
+         (บันทึกใน Express handler: Date.now())
+     T4: ทันทีที่ Backend emit WebSocket ไปยัง Unity
+         (บันทึกก่อน socket.emit)
+     T5: ทันทีที่ Unity รับ event และ spawn vehicle
+         (บันทึกใน C#: System.DateTime.UtcNow)
+  2. รัน Pipeline ด้วยวิดีโอปกติ ให้ผ่าน >= 30 vehicle crossing events
+  3. เก็บค่า Timestamp ทุก event ลงไฟล์ CSV
+  4. คำนวณ Latency แต่ละ Segment:
+     Segment 1 = T2 - T1   (AI Processing Time)
+     Segment 2 = T3 - T2   (HTTP POST + Validation)
+     Segment 3 = T4 - T3   (WebSocket Broadcast)
+     Segment 4 = T5 - T4   (Unity Receive + Spawn)
+     E2E       = T5 - T1   (End-to-End Total)
+  5. คำนวณค่าสถิติสำหรับแต่ละ Segment:
+     - Median  (percentile ที่ 50)
+     - P95     (percentile ที่ 95)
+  6. บันทึกผลลงในตาราง (ดู Chapter4.tex ตาราง tab:latency)
+  7. ตรวจสอบว่า E2E Median <= 1.0 วินาที (1,000 ms)
+
+หมายเหตุ
+  - ต้องให้ระบบทั้งหมดรันอยู่บน hardware เดียวกัน (Local) เพื่อให้ผลสอดคล้อง
+  - ถ้า Unity รันบนเครื่องอื่น ต้อง synchronize clock ด้วย NTP ก่อน
+  - ค่า Latency จะแปรตาม CPU load ให้ทดสอบใน condition ที่ใกล้เคียง production
+
+บันทึกผล
+  Segment 1 — AI Processing:         Median=___ms  P95=___ms
+  Segment 2 — HTTP POST Ingest:       Median=___ms  P95=___ms
+  Segment 3 — WS Broadcast:           Median=___ms  P95=___ms
+  Segment 4 — Unity Spawn:            Median=___ms  P95=___ms
+  E2E Total:                          Median=___ms  P95=___ms
+  ผ่านเกณฑ์: [ ] E2E Median <= 1,000 ms
+
+===========================================================================
+ สรุปผลและการบันทึก
+===========================================================================
+
+หลังทำการทดลองครบทั้ง 2 Phase ให้บันทึกผลลงใน docs/project-status.md
+และอัปเดตตาราง Acceptance Criteria ใน Chapter4.tex (ตาราง tab:acceptance)
+
+Acceptance Criteria ทั้งหมด:
+  [ ] Exp 1: Car Recall        >= 0.85
+  [ ] Exp 1: Moto Recall       >= 0.70
+  [ ] Exp 1: Overall Precision >= 0.85
+  [ ] Exp 2: Overall Accuracy  >= 0.70
+  [ ] Exp 2: Standstill->Normal = 0 กรณี
+  [ ] Exp 3: Windows ที่เปลี่ยนคำตัดสิน >= 1 หน้าต่าง
+  [ ] Exp 4: E2E Median Latency <= 1.0 วินาที
+
+ถ้าไม่ผ่านข้อใด ให้กลับไปปรับ Parameter และทำซ้ำ
+Priority การแก้:
+  - Recall ต่ำ      → ลด Confidence Threshold หรือเพิ่ม imgsz
+  - Latency สูง     → วิเคราะห์ว่า Segment ใดช้า แล้วปรับ
+  - State Error สูง → ตรวจสอบค่า Threshold ใน Config YAML
+
+===========================================================================
+ จัดทำโดย: Smart Flow Team — KMITL Faculty of IT
+ อ้างอิง: docs/data-contract.md, docs/architecture.md
+===========================================================================

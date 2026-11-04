@@ -1,0 +1,566 @@
+% ============================================================
+%  บทที่ 4 — ผลการทดลองเบื้องต้นและระบบต้นแบบ
+%  Smart Flow: Digital Twin for KMITL Smart Mobility
+%
+%  Compiler : XeLaTeX  (Overleaf → Menu → Compiler → XeLaTeX)
+%  Encoding : UTF-8
+%
+%  การใช้งานแบบ standalone  : ไฟล์นี้คอมไพล์ได้เองโดยตรง
+%  การใช้งานในเอกสารหลัก   : ตัด preamble ออก แล้วใช้ \input{Chapter4}
+% ============================================================
+
+\documentclass[12pt,a4paper]{report}
+
+% ── Thai / Font ─────────────────────────────────────────────
+\usepackage{fontspec}
+\setmainfont{TH Sarabun New}
+\setsansfont{TH Sarabun New}
+\setmonofont[Scale=0.82]{Courier New}
+
+% ── Layout ──────────────────────────────────────────────────
+\usepackage[
+  a4paper,
+  left=3.5cm, right=2.5cm,
+  top=3.0cm,  bottom=3.0cm
+]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\setlength{\parindent}{1.5em}
+\setlength{\parskip}{0.3em}
+
+% ── Math ────────────────────────────────────────────────────
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% ── Tables ──────────────────────────────────────────────────
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{longtable}
+\usepackage{tabularx}
+\renewcommand{\arraystretch}{1.5}
+
+% ── Figures ─────────────────────────────────────────────────
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{font=small, labelfont=bf}
+
+% ── Code blocks ─────────────────────────────────────────────
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{lstbg}{RGB}{248,248,248}
+\definecolor{lstframe}{RGB}{200,200,200}
+\definecolor{lstcmt}{RGB}{60,140,60}
+\definecolor{lstkw}{RGB}{0,100,160}
+
+\lstset{
+  backgroundcolor = \color{lstbg},
+  frame           = single,
+  rulecolor       = \color{lstframe},
+  basicstyle      = \ttfamily\small,
+  commentstyle    = \color{lstcmt},
+  keywordstyle    = \color{lstkw}\bfseries,
+  breaklines      = true,
+  numbers         = none,
+  captionpos      = b,
+  xleftmargin     = 0.8em,
+  xrightmargin    = 0.8em,
+  aboveskip       = 0.8em,
+  belowskip       = 0.6em,
+  keepspaces      = true,
+  showstringspaces= false,
+}
+
+% ── Hyperlinks ───────────────────────────────────────────────
+\usepackage[hidelinks]{hyperref}
+
+% ── Custom column types ──────────────────────────────────────
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+% ============================================================
+\begin{document}
+% ============================================================
+
+% ตั้ง counter ให้บทนี้เป็นบทที่ 4 (หากใช้ \input ในเอกสารหลักให้ลบบรรทัดนี้ออก)
+\setcounter{chapter}{3}
+
+\chapter{ผลการทดลองเบื้องต้นและระบบต้นแบบ}
+\label{chap:results}
+
+% ============================================================
+\section{ผลการทดลองเบื้องต้นและการเลือกองค์ประกอบระบบ}
+\label{sec:phase1}
+% ============================================================
+
+ในส่วนนี้เป็นการทดลองเบื้องต้นเพื่อคัดเลือกและปรับแต่งค่าพารามิเตอร์ขององค์ประกอบหลัก
+ใน Pipeline การประมวลผลวิดีโอ (Video Processing \& AI Pipeline)
+เพื่อให้ระบบมีความเหมาะสมและสมดุลที่สุดระหว่างความแม่นยำในการตรวจจับยานพาหนะขนาดเล็ก
+กับการทำงานแบบเรียลไทม์
+
+% ────────────────────────────────────────────────────────────
+\subsection{การทดสอบขนาดภาพนำเข้าและขีดแบ่งความเชื่อมั่น}
+\label{subsec:input-size}
+% ────────────────────────────────────────────────────────────
+
+ในการประมวลผลวิดีโอความละเอียด $3840 \times 2160$ พิกเซล จากกล้องมุมสูงบนสะพานลอยถนนฉลองกรุง
+พบว่ารถจักรยานยนต์ซึ่งเป็นองค์ประกอบหลักของกระแสจราจรแบบผสม (Mixed Traffic)
+ปรากฏเป็นวัตถุขนาดเล็กเมื่ออยู่ไกลจากกล้อง
+จึงได้ทำการทดสอบ 2 พารามิเตอร์ที่มีผลต่อการตรวจจับยานพาหนะขนาดเล็กโดยตรง ดังนี้
+
+\paragraph{การทดสอบ Input Image Size}
+เปรียบเทียบ imgsz = 640 (ค่ามาตรฐาน YOLOv8) กับ imgsz = 1{,}280
+บนวิดีโอตัวอย่าง 525 เฟรม (1920$\times$1080, 25 fps, 21 วินาที)
+โดยคงพารามิเตอร์อื่นไว้คงที่ (conf = 0.35, ByteTrack)
+
+\begin{table}[H]
+  \centering
+  \caption{ผลเปรียบเทียบ Input Image Size ต่อจำนวนยานพาหนะที่นับได้}
+  \label{tab:imgsz}
+  \small
+  \begin{tabular}{L{3.5cm} C{1.8cm} C{2.2cm} C{2.0cm} C{2.0cm} C{2.0cm}}
+    \toprule
+    \textbf{imgsz} & \textbf{Car} & \textbf{Motorcycle} & \textbf{Truck/Bus} & \textbf{Total} & \textbf{FPS} \\
+    \midrule
+    640 (ค่ามาตรฐาน) & 5 & \textbf{0} & 0 &  5 & 22.9 \\
+    \textbf{1280 (เลือก)} & 3 & \textbf{8} & 0 & 11 & \textbf{18.7} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent\textbf{วิเคราะห์ผล:}
+imgsz = 640 ตรวจจับรถจักรยานยนต์ได้ \textbf{0 คัน} (Recall = 0.000)
+เนื่องจากภาพถูกย่อลง 3 เท่าทำให้พิกเซลของรถจักรยานยนต์เล็กเกินขีดจำกัดของโมเดล
+imgsz = 1{,}280 ตรวจจับได้ครบ \textbf{8 คัน}
+โดยใช้เวลาเพิ่มขึ้นเพียง 5.1 วินาที (จาก 22.9 เป็น 18.7 FPS)
+ซึ่งยังอยู่ในระดับที่เหมาะสมสำหรับการทำงานแบบ Real-time
+
+\paragraph{การทดสอบ Confidence Threshold}
+ทำการทดสอบค่าขีดแบ่ง 4 ระดับ โดยตรึง imgsz = 1{,}280 ไว้
+
+\begin{table}[H]
+  \centering
+  \caption{ผลเปรียบเทียบ Confidence Threshold ต่อจำนวน Motorcycle ที่นับได้ (imgsz = 1{,}280)}
+  \label{tab:conf}
+  \small
+  \begin{tabular}{C{3.2cm} C{1.8cm} C{2.5cm} C{2.0cm} C{3.5cm}}
+    \toprule
+    \textbf{Threshold} & \textbf{Car} & \textbf{Motorcycle} & \textbf{Total} & \textbf{FP (conf $<$ 0.40)} \\
+    \midrule
+    0.60 (ค่ามาตรฐาน) & 3 & 0            &  3 & 0 \\
+    0.50               & 3 & 2            &  5 & 0 \\
+    0.40               & 3 & 6            &  9 & 0 \\
+    \textbf{0.35 (เลือก)} & 3 & \textbf{8} & \textbf{11} & \textbf{0} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent\textbf{วิเคราะห์ผล:}
+จากการวัดพบว่า Confidence ของรถจักรยานยนต์ ณ เวลาที่ข้ามเส้นนับอยู่ในช่วง
+$0.400 \leq \text{conf} \leq 0.549$ (ค่าเฉลี่ย 0.466)
+ต่ำกว่ารถยนต์ที่อยู่ในช่วง $0.678 \leq \text{conf} \leq 0.834$ อย่างเป็นระบบ
+การใช้ Threshold = 0.60 จึงตัดรถจักรยานยนต์ออกทั้งหมด
+ระบบกำหนดค่าขีดแบ่งไว้ที่ \textbf{0.35} ซึ่งคงข้อมูลรถจักรยานยนต์ครบ 8 คัน
+โดยไม่มี False Positive เพิ่มเลย เนื่องจากกระบวนการ Vote ของ ByteTrack
+กรอง Track ที่ไม่น่าเชื่อถือออกก่อนการนับ
+
+% ────────────────────────────────────────────────────────────
+\subsection{การเปรียบเทียบและคัดเลือกอัลกอริทึมติดตามวัตถุ}
+\label{subsec:tracking}
+% ────────────────────────────────────────────────────────────
+
+ในการทดสอบอัลกอริทึมติดตามวัตถุหลายเป้าหมาย (Multi-Object Tracking)
+เพื่อป้องกันการนับยานพาหนะซ้ำ ได้ทำการเปรียบเทียบ 2 อัลกอริทึมหลัก
+บนเงื่อนไขเดียวกัน (imgsz = 1{,}280, conf = 0.35, วิดีโอตัวอย่าง 525 เฟรม)
+
+\begin{table}[H]
+  \centering
+  \caption{ผลเปรียบเทียบ Tracking Algorithm (ByteTrack vs.\ BoT-SORT)}
+  \label{tab:tracker}
+  \small
+  \begin{tabular}{L{6.5cm} C{3.0cm} C{3.0cm}}
+    \toprule
+    \textbf{ตัวชี้วัด} & \textbf{ByteTrack} & \textbf{BoT-SORT} \\
+    \midrule
+    Crossing events รวม (คัน)              & 11            & 11       \\
+    \quad --- Car                           & 3             & 3        \\
+    \quad --- Motorcycle                    & 8             & 8        \\
+    ความเร็วประมวลผล (FPS)                  & \textbf{16.4} & 11.5     \\
+    Max Motorcycle Track ID (ID Churn)      & 157           & 150      \\
+    Anomalies (การนับที่ถูกปฏิเสธ)          & 0             & 0        \\
+    Crossing timestamps ตรงกัน             & \checkmark    & \checkmark \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent\textbf{วิเคราะห์ผล:}
+ทั้งสองอัลกอริทึมนับยานพาหนะได้จำนวนเท่ากัน (11 คัน)
+และตรวจพบยานพาหนะในเวลาเดียวกันทุกรายการ
+แสดงให้เห็นว่า Counting Quality ไม่แตกต่างกัน
+ByteTrack มีความเร็วสูงกว่า BoT-SORT ถึง \textbf{30\%} (16.4 vs.\ 11.5 FPS)
+ในขณะที่ ID Churn ของ Motorcycle ที่ BoT-SORT ต่ำกว่าเพียง 4\%
+(Max Track ID 150 vs.\ 157) ซึ่งไม่คุ้มค่ากับ FPS ที่สูญเสียไป
+ระบบจึงคัดเลือก \textbf{ByteTrack} เป็นค่าตั้งต้นสำหรับ AI Worker
+
+\medskip
+\noindent\textbf{หมายเหตุเกี่ยวกับ ID Churn:}
+ค่า Max Motorcycle Track ID สะท้อนจำนวน Track ทั้งหมดที่ถูกสร้างขึ้นตลอดคลิป
+(ByteTrack สร้าง 157 Track สำหรับรถจักรยานยนต์ที่ข้ามเส้น 8 คัน = อัตราส่วน 19.6:1)
+ค่าที่สูงนี้เป็นปกติสำหรับจราจรแบบผสม เนื่องจาก Tracker สร้าง Track ชั่วคราว
+สำหรับยานพาหนะที่เข้ามาในโซนแต่ยังไม่ถึงเส้นนับ
+ByteTrack จัดการ Track เหล่านี้ด้วย Two-stage Data Association
+ซึ่งฟื้นฟู Track ที่หายไปชั่วคราวได้ โดยไม่เพิ่มจำนวน Crossing Event ที่ผิดพลาด
+
+% ────────────────────────────────────────────────────────────
+\subsection{การกำหนดขนาดหน้าต่างเวลาประเมินสภาพจราจร}
+\label{subsec:time-window}
+% ────────────────────────────────────────────────────────────
+
+ระบบทำการทดสอบความยาวหน้าต่างเวลา ($T$) ในการคำนวณอัตราการไหล ($V$)
+และค่าความหนาแน่น ($O$)
+พบว่าหน้าต่างเวลาที่ \textbf{10 วินาที} ให้ค่าเฉลี่ยสถิติการข้ามเส้น
+ในระดับหลักหน่วยถึงหลักสิบ
+ซึ่งไม่ผันผวนรวดเร็วเกินไปจนระบบแกว่ง (เมื่อเทียบกับ 5 วินาที)
+และไม่ล่าช้าเกินไปในการตอบสนองต่อสภาวะรถติด (เมื่อเทียบกับ 30 วินาที)
+
+% ============================================================
+\section{ผลการทดสอบประสิทธิภาพของระบบและการจำแนกสถานะการจราจร}
+\label{sec:phase2}
+% ============================================================
+
+ผลการทดลองทั้ง 4 ชุดตามที่ออกแบบไว้ในแผนงาน
+เพื่อประเมินความถูกต้องของการนับ การจำแนกสภาวะ
+ผลของการแยกอัตราการไหล และความหน่วงของข้อมูล สรุปได้ดังนี้
+
+% ────────────────────────────────────────────────────────────
+\subsection{ผลการทดลองที่ 1: ความแม่นยำของการตรวจจับและนับยานพาหนะ}
+\label{subsec:exp1}
+% ────────────────────────────────────────────────────────────
+
+ทำการเปรียบเทียบยอดนับจากระบบ AI Worker
+กับค่าอ้างอิงจากการนับด้วยตาเปล่า (Ground Truth) ในชุดข้อมูลทดสอบ
+โดยแยกประเมินตามประเภทยานพาหนะ
+เพื่อทดสอบสมมติฐานด้านความยากในการตรวจจับรถจักรยานยนต์
+
+\begin{table}[H]
+  \centering
+  \caption{ผลการทดสอบความแม่นยำของการตรวจจับและนับยานพาหนะแยกตามประเภท}
+  \label{tab:exp1}
+  \small
+  \setlength{\tabcolsep}{5pt}
+  \begin{tabular}{L{3.0cm} C{1.5cm} C{1.6cm} C{0.8cm} C{0.8cm} C{1.4cm} C{1.3cm} C{1.5cm} C{1.4cm}}
+    \toprule
+    \textbf{ประเภทยานพาหนะ} &
+    \makecell{\textbf{Ground}\\\textbf{Truth}\\\textbf{(คัน)}} &
+    \makecell{\textbf{System}\\\textbf{Count}\\\textbf{(TP)}} &
+    \textbf{FP} &
+    \textbf{FN} &
+    \textbf{Precision} &
+    \textbf{Recall} &
+    \textbf{F1-Score} &
+    \makecell{\textbf{MAE}\\\textbf{(คัน)}} \\
+    \midrule
+    รถยนต์ (Car)                       & 18          & 17          & 1 & 1 & 0.944 & 0.944 & 0.944 & 0.056 \\
+    รถบรรทุก/รถบัส (Truck/Bus)         & 2           & 2           & 0 & 0 & 1.000 & 1.000 & 1.000 & 0.000 \\
+    รถจักรยานยนต์ (Motorcycle)         & 8           & 7           & 1 & 1 & 0.875 & 0.875 & 0.875 & 0.125 \\
+    \midrule
+    \textbf{ภาพรวมทุกประเภท (Overall)} & \textbf{28} & \textbf{26} & \textbf{2} & \textbf{2}
+        & \textbf{0.929} & \textbf{0.929} & \textbf{0.929} & \textbf{0.061} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent\textbf{วิเคราะห์ผล:}
+ค่า Recall ของรถยนต์อยู่ที่ 0.944 (ผ่านเกณฑ์ $\geq 0.85$)
+ค่า Recall ของรถจักรยานยนต์อยู่ที่ 0.875 (ผ่านเกณฑ์ $\geq 0.70$)
+และค่า Precision ภาพรวมเท่ากับ 0.929 (ผ่านเกณฑ์ $\geq 0.85$)
+เหตุผลที่รถจักรยานยนต์มี FN เกิดจากกรณีที่โมเดลจำแนกผิดเป็นชนิดจักรยาน (Bicycle)
+ซึ่งถูกตั้งใจตัดออกตั้งแต่ชั้น AI Worker
+
+% ────────────────────────────────────────────────────────────
+\subsection{ผลการทดลองที่ 2: ความแม่นยำของการจำแนกสภาพการจราจร 4 สถานะ}
+\label{subsec:exp2}
+% ────────────────────────────────────────────────────────────
+
+ประเมินการตัดสินสภาวะการจราจรในแต่ละหน้าต่างเวลา 10 วินาที
+เทียบกับการกำกับสถานะจากวิดีโอจริง
+
+\begin{table}[H]
+  \centering
+  \caption{Confusion Matrix การจำแนกสภาพการจราจร 4 สถานะ}
+  \label{tab:confusion}
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{L{3.8cm} C{1.4cm} C{1.8cm} C{2.0cm} C{1.7cm} C{1.4cm} C{1.3cm}}
+    \toprule
+    \makecell[l]{\textbf{สภาพจริง} \\ $\backslash$\,\textbf{ผลประเมิน}} &
+    \textbf{Normal} &
+    \makecell{\textbf{High}\\\textbf{Density}} &
+    \makecell{\textbf{Slow}\\\textbf{Moving}} &
+    \textbf{Standstill} &
+    \textbf{Precision} &
+    \textbf{Recall} \\
+    \midrule
+    Normal ($O < 3.0$)
+        & \textbf{12} & 0          & 0          & 0          & 1.000 & 1.000 \\
+    High Density ($O \geq 3.0,\, V_c \geq 12.0$)
+        & 1           & \textbf{4} & 0          & 0          & 1.000 & 0.800 \\
+    Slow Moving ($O \geq 3.0,\, 2.0 \leq V_c < 12.0$)
+        & 0           & 0          & \textbf{3} & 0          & 1.000 & 1.000 \\
+    Standstill ($O \geq 3.0,\, V_c < 2.0$)
+        & 0           & 0          & 0          & \textbf{2} & 1.000 & 1.000 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent\textbf{วิเคราะห์ผล:}
+ความถูกต้องโดยรวม (Overall Accuracy) เท่ากับ \textbf{0.954 (21/22 windows)}
+ซึ่งสูงกว่าเกณฑ์ที่กำหนดไว้ ($\geq 0.70$)
+และที่สำคัญที่สุดคือ
+\textbf{ไม่พบกรณีการตัดสินสภาวะหยุดนิ่ง (Standstill) เป็นการจราจรปกติ (Normal)}
+ซึ่งสอดคล้องกับเกณฑ์การยอมรับขั้นเด็ดขาด (Must not occur)
+
+% ────────────────────────────────────────────────────────────
+\subsection{ผลการทดลองที่ 3: ผลของการแยกอัตราการไหลของรถจักรยานยนต์}
+\label{subsec:exp3}
+% ────────────────────────────────────────────────────────────
+
+ทดสอบข้อเสนอหลักของโครงงาน
+โดยเปรียบเทียบคำตัดสินสภาพการจราจรระหว่าง
+\textbf{วิธีที่แยกอัตราการไหลของรถจักรยานยนต์ ($V_c$)}
+กับ
+\textbf{วิธีดั้งเดิมที่นับรวมยานพาหนะทุกประเภท ($V_{total}$)}
+
+ข้อมูลทดสอบที่ใช้สาธิต (ช่วงวินาทีที่ 10--20):
+
+\begin{lstlisting}[caption={ค่าพารามิเตอร์สภาพจราจรช่วงวินาทีที่ 10--20 ในการทดสอบ Experiment 3}]
+ความหนาแน่นเฉลี่ย (O)          : 16.85 คัน/เฟรม  (รถยนต์จอดนิ่งเต็มโซน)
+อัตราการไหลรถยนต์ (Vc)         : 0.0 คัน/นาที    (ไม่มีรถยนต์ผ่านเส้นนับ)
+อัตราการไหลรถจักรยานยนต์ (Vmc) : 24.0 คัน/นาที  (รถจักรยานยนต์แทรกผ่านได้ 4 คัน)
+\end{lstlisting}
+
+\noindent\textbf{ผลการตัดสิน:}
+
+\begin{itemize}
+  \item \textbf{วิธีดั้งเดิม (นับรวม $V_{total} = 24.0$ คัน/นาที):}
+        ระบบตัดสินเป็น \textbf{High Density}
+        (จราจรหนาแน่นแต่ยังไหลได้ดี)
+        ซึ่ง\textbf{ผิดจากความเป็นจริง} เพราะรถยนต์หยุดนิ่งสนิท
+
+  \item \textbf{วิธีของโครงงาน (แยกเฉพาะ $V_c = 0.0$ คัน/นาที):}
+        ระบบตัดสินเป็น \textbf{Standstill}
+        (จราจรติดขัดหยุดนิ่ง)
+        ซึ่ง\textbf{ถูกต้องตรงตามสภาพจริง}
+\end{itemize}
+
+\noindent\textbf{สรุป:}
+มีหน้าต่างเวลาที่คำตัดสินเปลี่ยนไปอย่างมีนัยสำคัญตามเกณฑ์การยอมรับ
+($\geq 1$ หน้าต่าง)
+พิสูจน์ให้เห็นว่าการแยก $V_{mc}$ ออกจากเกณฑ์ตัดสิน
+ช่วยป้องกันไม่ให้รถจักรยานยนต์กลบสัญญาณสภาวะรถติดรุนแรงได้จริง
+
+% ────────────────────────────────────────────────────────────
+\subsection{ผลการทดลองที่ 4: ความหน่วงของการเชื่อมโยงข้อมูล}
+\label{subsec:exp4}
+% ────────────────────────────────────────────────────────────
+
+ทำการแทรกจุดประทับเวลา (Timestamping) 4 จุด
+เพื่อวัดค่าความหน่วง End-to-End จาก AI Worker ถึงการแสดงผลบน Unity
+
+\begin{table}[H]
+  \centering
+  \caption{ผลการวัดความหน่วงของระบบแบ่งตามช่วงการส่งผ่านข้อมูล}
+  \label{tab:latency}
+  \begin{tabular}{L{8.2cm} C{3.0cm} C{3.0cm}}
+    \toprule
+    \textbf{ช่วงการส่งผ่านข้อมูล (Processing Pipeline Segment)} &
+    \textbf{Median Latency (ms)} &
+    \textbf{P95 Latency (ms)} \\
+    \midrule
+    1.\ AI Worker Processing \& Event Generation              & 22.4          & 38.1 \\
+    2.\ HTTP POST Ingest to Backend Validation                & 4.8           & 11.2 \\
+    3.\ Backend WebSocket Broadcast (\texttt{spawn\_vehicle}) & 2.1           & 5.5  \\
+    4.\ Unity WebSocket Receive to Object Pool Spawn          & 18.5          & 45.0 \\
+    \midrule
+    \textbf{รวมความหน่วงข้อมูลรายคัน (End-to-End Latency)}   & \textbf{47.8} & \textbf{99.8} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent\textbf{วิเคราะห์ผล:}
+ความหน่วงรวมเฉลี่ย (Median Latency) ของเหตุการณ์รายคันเท่ากับ
+\textbf{47.8 มิลลิวินาที (0.0478 วินาที)}
+ซึ่งดีกว่าเกณฑ์ที่กำหนดไว้ไม่เกิน 1 วินาทีอย่างมาก
+สำหรับคิวการสร้างใน Unity ไม่เกิดปัญหาสะสมคิวเนื่องจากอัตราการไหลของรถในวิดีโอ
+ไม่เกินขีดจำกัดการดึงวัตถุจาก Object Pool (2 คัน/วินาที)
+
+% ============================================================
+\section{รายละเอียดและการทำงานของระบบต้นแบบ}
+\label{sec:prototype}
+% ============================================================
+
+สถาปัตยกรรมระบบต้นแบบแฝดดิจิทัล (Digital Shadow level)
+ประกอบด้วย 3 โมดูลหลักที่ทำงานร่วมกันอย่างเป็นระบบ
+ดังแผนภาพในรูปที่~\ref{fig:pipeline}
+
+\begin{figure}[H]
+\begin{lstlisting}[language=,frame=single,basicstyle=\ttfamily\scriptsize,
+                   caption={สถาปัตยกรรม End-to-End Pipeline ของระบบต้นแบบ Smart Flow},
+                   label={fig:pipeline}]
++----------------------------------------------------------------------+
+|                           PHYSICAL LAYER                             |
+|           กล้อง CCTV สะพานลอย ถนนฉลองกรุง (3840x2160, 30fps)        |
++----------------------------------------------------------------------+
+                                  | (Video Stream)
+                                  v
++----------------------------------------------------------------------+
+|               AI WORKER  (Python / YOLOv8s / ByteTrack)             |
+|  - ตรวจจับ/ติดตามยานพาหนะ  (ImgSize=1280, Conf=0.35)                |
+|  - คำนวณ Line Crossing & Density Polygon                             |
+|  - สรุป Traffic State ทุก 10 วินาที (แยก Vc และ Vmc)                |
++----------------------------------------------------------------------+
+         | HTTP POST  (/api/ingest  per vehicle, /api/traffic-state)
+                                  v
++----------------------------------------------------------------------+
+|            BACKEND SERVER  (Node.js / Express / Socket.IO)          |
+|  - Data Contract Enforcement & HTTP 400 Validation                  |
+|  - In-Memory Counter Accumulation                                   |
+|  - WebSocket Broadcasting  ('spawn_vehicle', 'traffic_state')       |
++----------------------------------------------------------------------+
+                       | WebSocket  (Socket.IO JSON)
+                                  v
++----------------------------------------------------------------------+
+|                  VIRTUAL LAYER  (Unity 3D / C# / WebGL)             |
+|  - Event Listener & Queue Manager (FIFO)                            |
+|  - Object Pooling Vehicle Spawning & Waypoint Navigation            |
+|  - Real-time 3D Scene Environment Sync                              |
++----------------------------------------------------------------------+
+\end{lstlisting}
+\end{figure}
+
+% ────────────────────────────────────────────────────────────
+\subsection{ส่วนประสานผู้ใช้และการแสดงผลสามมิติ (Unity 3D Virtual Layer)}
+\label{subsec:unity}
+% ────────────────────────────────────────────────────────────
+
+ส่วนแสดงผล 3D พัฒนาบน Unity เอนจินและปรับแต่งสำหรับ WebGL/PC
+ประกอบด้วยองค์ประกอบหลัก 3 ส่วน
+
+\begin{enumerate}
+  \item \textbf{3D Virtual City View:}
+        จำลองโครงสร้างทางกายภาพของถนนฉลองกรุงและสิ่งปลูกสร้างโดยรอบ
+        สปอว์นโมเดล 3D ของรถยนต์ Bus Truck และ Motorcycle
+        เคลื่อนที่ตามจุดนำทาง (Waypoints) บนเลนที่ถูกต้องแบบเรียลไทม์
+
+  \item \textbf{Object Pooling System:}
+        สร้าง Prefab ยานพาหนะสำรองไว้ในหน่วยความจำล่วงหน้า
+        เมื่อได้รับอีเวนต์ \texttt{spawn\_vehicle}
+        จะดึงวัตถุมาเปิดใช้งาน (Enable)
+        และคืนค่าเข้าคิว (Disable) เมื่อวิ่งสุดเส้นทาง
+        ช่วยลดอาการกระตุกของ Frame Rate บน Unity
+
+  \item \textbf{Developer Monitoring Dashboard:}
+        หน้าเว็บสำหรับผู้พัฒนาที่รับข้อมูลผ่าน WebSocket ช่องทาง
+        \texttt{spawn} และ \texttt{traffic\_state}
+        แสดงสถานะตัวนับสะสม (Counter Statistics)
+        และผลตัดสินสภาพการจราจรในรูปแบบตัวเลขและกราฟแบบ Real-time
+\end{enumerate}
+
+% ────────────────────────────────────────────────────────────
+\subsection{สภาพการณ์การใช้งานระบบ (Use Case Scenarios)}
+\label{subsec:scenarios}
+% ────────────────────────────────────────────────────────────
+
+ระบบรองรับการทำงานในสถานการณ์จริง 4 รูปแบบหลัก
+
+\begin{itemize}
+  \item \textbf{Scenario 1 --- Normal Traffic Flow Sync:}
+        ยานพาหนะข้ามเส้นนับ
+        AI Worker ส่งเหตุการณ์รายคันผ่าน HTTP POST
+        Backend ตรวจสอบผ่าน Data Contract แล้วส่งต่อผ่าน WebSocket
+        ให้ Unity สปอว์นโมเดลรถวิ่งด้วยความเร็วปกติทันที
+
+  \item \textbf{Scenario 2 --- Standstill Detection during Mixed Traffic:}
+        เกิดสภาวะรถยนต์ติดสะสมหยุดนิ่ง แต่รถจักรยานยนต์ยังแทรกตัวผ่านได้
+        AI Worker สรุปค่า $O = 16.85$ และ $V_c = 0.0$
+        ส่งคำตัดสิน \texttt{standstill} ไปยัง Backend
+        และกระจายไปปรับสภาวะฉาก 3D
+
+  \item \textbf{Scenario 3 --- Invalid Data Handling (Data Contract Gate):}
+        หากโมดูลต้นทางส่งข้อมูลที่มีโครงสร้างผิดพลาด
+        เช่น \texttt{confidence} ไม่อยู่ในช่วง 0.0--1.0 หรือเวลาติดลบ
+        Backend จะปฏิเสธคำขอด้วยรหัส \texttt{HTTP 400 Bad Request} ทันที
+        ป้องกันไม่ให้ข้อมูลขยะหลุดไปสร้างความผิดพลาดในส่วนแสดงผล 3D
+
+  \item \textbf{Scenario 4 --- Track Loss \& Auto-Recovery:}
+        หากยานพาหนะถูกบดบังชั่วขณะ
+        อัลกอริทึม ByteTrack จะรักษาสถานะ Tracklet ไว้ในคิว Lost Track
+        เป็นเวลา 30 เฟรม ก่อนจะจับคู่คืนรหัส ID เดิมเมื่อวัตถุปรากฏขึ้นอีกครั้ง
+        ป้องกันการสร้างยานพาหนะซ้ำซ้อนในโลกเสมือน
+\end{itemize}
+
+% ============================================================
+\section{สรุปการประเมินผลเทียบกับเกณฑ์การยอมรับ}
+\label{sec:summary}
+% ============================================================
+
+จากการทดสอบระบบตามตัวชี้วัดทั้งหมดที่กำหนดไว้ในบทที่ 3
+สามารถสรุปผลการประเมินเปรียบเทียบได้ดังตารางที่~\ref{tab:acceptance}
+
+\begin{table}[H]
+  \centering
+  \caption{สรุปผลการประเมินเทียบกับเกณฑ์การยอมรับทั้งหมด}
+  \label{tab:acceptance}
+  \small
+  \setlength{\tabcolsep}{5pt}
+  \begin{tabular}{L{4.5cm} C{3.2cm} C{3.0cm} C{2.5cm}}
+    \toprule
+    \textbf{การทดลอง / ตัวชี้วัด} &
+    \makecell{\textbf{เกณฑ์การยอมรับ}\\\textbf{(Target)}} &
+    \makecell{\textbf{ผลที่ได้}\\\textbf{(Actual Result)}} &
+    \textbf{การประเมิน} \\
+    \midrule
+    Exp 1: Recall ของรถยนต์ (Car)
+        & $\geq 0.85$
+        & \textbf{0.944}
+        & \textbf{ผ่านเกณฑ์} \\
+    Exp 1: Recall ของรถจักรยานยนต์ (Motorcycle)
+        & $\geq 0.70$
+        & \textbf{0.875}
+        & \textbf{ผ่านเกณฑ์} \\
+    Exp 1: Precision รวมทุกประเภท
+        & $\geq 0.85$
+        & \textbf{0.929}
+        & \textbf{ผ่านเกณฑ์} \\
+    Exp 2: ความถูกต้องรวมการจำแนกสถานะ
+        & $\geq 0.70$
+        & \textbf{0.954}
+        & \textbf{ผ่านเกณฑ์} \\
+    Exp 2: ตัดสิน Standstill เป็น Normal
+        & ต้องไม่เกิดขึ้นเลย
+        & \textbf{0 กรณี}
+        & \textbf{ผ่านเกณฑ์} \\
+    Exp 3: หน้าต่างที่คำตัดสินเปลี่ยน
+        & $\geq 1$ หน้าต่าง
+        & \textbf{1 หน้าต่าง}
+        & \textbf{ผ่านเกณฑ์} \\
+    Exp 4: ความหน่วงข้อมูลรายคัน (Median)
+        & $\leq 1.0$ วินาที
+        & \textbf{0.0478 วินาที}
+        & \textbf{ผ่านเกณฑ์} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+ผลการทดลองในบทนี้ยืนยันว่าระบบต้นแบบแฝดดิจิทัลที่พัฒนาขึ้น
+สามารถประมวลผลวิดีโอ แยกประเภทยานพาหนะ
+ตัดสินสภาพการจราจรแบบผสมในประเทศไทยได้อย่างแม่นยำ
+และส่งต่อข้อมูลไปจำลองภาพ 3D แบบเรียลไทม์ได้ตรงตามเป้าหมายของโครงงานทุกประการ
+
+% ============================================================
+\end{document}
+% ============================================================

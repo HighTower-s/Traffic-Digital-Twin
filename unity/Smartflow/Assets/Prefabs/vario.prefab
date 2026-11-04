@@ -10,7 +10,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 1556c59c710b0e9408160e91aa339766, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -145.82129
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 1556c59c710b0e9408160e91aa339766, type: 3}
       propertyPath: m_LocalPosition.y
@@ -18,7 +18,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 1556c59c710b0e9408160e91aa339766, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 5.502415
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 1556c59c710b0e9408160e91aa339766, type: 3}
       propertyPath: m_LocalRotation.w
@@ -107,10 +107,10 @@ MonoBehaviour:
   safeDistance: 2
   acceleration: 4
   turnSpeed: 8
-  stopDistance: 0.5
+  stopDistance: 1.5
   obstacleLayer:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 64
 --- !u!65 &-4976391043880405637
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -131,4 +131,4 @@ BoxCollider:
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 1, y: 1.7531557, z: 2.0547667}
-  m_Center: {x: 0, y: 0.37657785, z: -0.034953594}
+  m_Center: {x: 0, y: 0.97, z: 0}

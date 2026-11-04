@@ -226,7 +226,7 @@ public class ScenarioManager : MonoBehaviour
             string outStatus = GetColoredStatus(currentOutboundState);
 
             // แสดงผลใน Text เดียวแบบขึ้นบรรทัดใหม่
-            trafficStatusText.text = $"TRAFFIC STATUS\nIN: {inStatus} | OUT: {outStatus}";
+            trafficStatusText.text = $"TRAFFIC STATUS\nIN: {inStatus}\nOUT: {outStatus}";
         }
 
         // 4. อัปเดตข้อมูลสิ่งแวดล้อม
@@ -397,6 +397,22 @@ public class ScenarioManager : MonoBehaviour
 
         GameObject originalPrefab = vehicle.GetComponent<PoolMember>().originalPrefab;
         vehiclePools[originalPrefab].Enqueue(vehicle);
+    }
+    // 🟢 ส่งคืนสถานะที่มีความหนาแน่นสูงสุดระหว่าง Inbound และ Outbound
+    public string GetDominantTrafficState()
+    {
+        if (currentInboundState == "standstill" || currentInboundState == "high_density" ||
+            currentOutboundState == "standstill" || currentOutboundState == "high_density")
+        {
+            return "high_density";
+        }
+        
+        if (currentInboundState == "slow_moving" || currentOutboundState == "slow_moving")
+        {
+            return "slow_moving";
+        }
+
+        return "normal";
     }
     
 }

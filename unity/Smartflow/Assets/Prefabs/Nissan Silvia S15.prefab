@@ -111,10 +111,10 @@ MonoBehaviour:
   safeDistance: 3
   acceleration: 3
   turnSpeed: 6
-  stopDistance: 1.5
+  stopDistance: 2.5
   obstacleLayer:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 64
 --- !u!65 &-6742576916898684733
 BoxCollider:
   m_ObjectHideFlags: 0

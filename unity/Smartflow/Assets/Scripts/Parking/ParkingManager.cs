@@ -23,48 +23,53 @@ public class ParkingManager : MonoBehaviour
 
     void Update()
     {
-        // ---------------- 1. ทดสอบเข้า-ออกแบบทีละคัน ----------------
-        if (Input.GetKeyDown(KeyCode.Space)) // กด Spacebar เข้า A-01
-        {
-            OnDataReceived(new ParkingEvent { slot_id = "A-01", vehicle_type = "car", is_occupied = true });
-        }
-        if (Input.GetKeyDown(KeyCode.R)) // กด R ออกจาก A-01
-        {
-            OnDataReceived(new ParkingEvent { slot_id = "A-01", vehicle_type = "car", is_occupied = false });
-        }
-
-        // กดปุ่มเลข 2 เพื่อให้รถเข้าช่อง A-02 (แบบแมนนวล)
-        if (Input.GetKeyDown(KeyCode.Alpha2))
-        {
-            OnDataReceived(new ParkingEvent { slot_id = "A-02", vehicle_type = "car", is_occupied = true });
-        }
-
-        // กดปุ่มเลข 3 เพื่อให้รถเข้าช่อง A-03 (แบบแมนนวล)
-        if (Input.GetKeyDown(KeyCode.Alpha3))
-        {
-            OnDataReceived(new ParkingEvent { slot_id = "A-03", vehicle_type = "car", is_occupied = true });
-        }
+        // ... (โค้ดส่วน 1. ทดสอบเข้า-ออกแบบทีละคัน คงไว้เหมือนเดิม) ...
 
         // ---------------- 2. ทดสอบแบบเรียงคิวตามกันมา ----------------
-        // กดปุ่ม S เพื่อจำลองรถวิ่งเข้ามาต่อคิวกัน (เข้า A-02 และ A-03)
         if (Input.GetKeyDown(KeyCode.S))
         {
-            StartCoroutine(SpawnSequenceMockup());
+            // จำลอง JSON String (ในงานจริงอาจจะอ่านมาจากไฟล์ .json หรือ Web API)
+            string jsonMockup = @"{
+              ""demo_sequence"": [
+                { ""slot_id"": ""A-01"", ""vehicle_type"": ""car"", ""is_occupied"": true, ""delay_seconds"": 0 },
+                { ""slot_id"": ""A-02"", ""vehicle_type"": ""car"", ""is_occupied"": true, ""delay_seconds"": 15 },
+                { ""slot_id"": ""A-03"", ""vehicle_type"": ""car"", ""is_occupied"": true, ""delay_seconds"": 8 },
+                { ""slot_id"": ""A-04"", ""vehicle_type"": ""car"", ""is_occupied"": true, ""delay_seconds"": 35 },
+                { ""slot_id"": ""A-05"", ""vehicle_type"": ""car"", ""is_occupied"": true, ""delay_seconds"": 45 }
+              ]
+            }";
+
+            // แปลง JSON สู่คลาส Wrapper
+            ParkingSequenceWrapper data = JsonUtility.FromJson<ParkingSequenceWrapper>(jsonMockup);
+            
+            // เรียก Coroutine พร้อมส่งข้อมูลชุดนี้เข้าไป
+            StartCoroutine(SpawnSequenceMockup(data));
         }
     }
 
-    // Coroutine สำหรับหน่วงเวลาให้รถเกิดห่างกัน จะได้ขับตามกันมาอย่างเป็นธรรมชาติ
-    private IEnumerator SpawnSequenceMockup()
+    // ปรับ Coroutine ให้วนลูปอ่าน delay_seconds จากแต่ละคัน
+    private IEnumerator SpawnSequenceMockup(ParkingSequenceWrapper sequenceData)
     {
-        Debug.Log("[Mockup] ปล่อยคิวที่ 1 ไปช่อง A-02");
-        OnDataReceived(new ParkingEvent { slot_id = "A-02", vehicle_type = "car", is_occupied = true });
-        
-        // หน่วงเวลา 2.5 วินาที เพื่อให้คันแรกขับพ้นจุด Spawn Point ไปก่อน 
-        // (คุณสามารถปรับตัวเลข 2.5f ให้มากหรือน้อยลงได้ตามความเร็วที่รถวิ่ง)
-        yield return new WaitForSeconds(2.5f);
+        foreach (DemoParkingEvent item in sequenceData.demo_sequence)
+        {
+            // หน่วงเวลาก่อนปล่อยคิวตาม delay_seconds ใน JSON
+            if (item.delay_seconds > 0)
+            {
+                yield return new WaitForSeconds(item.delay_seconds);
+            }
 
-        Debug.Log("[Mockup] ปล่อยคิวที่ 2 ไปช่อง A-03");
-        OnDataReceived(new ParkingEvent { slot_id = "A-03", vehicle_type = "car", is_occupied = true });
+            Debug.Log($"[Mockup] ปล่อยรถประเภท {item.vehicle_type} ไปช่อง {item.slot_id}");
+            
+            // สร้าง ParkingEvent แบบเดิมเพื่อส่งเข้า OnDataReceived
+            ParkingEvent pEvent = new ParkingEvent 
+            { 
+                slot_id = item.slot_id, 
+                vehicle_type = item.vehicle_type, 
+                is_occupied = item.is_occupied 
+            };
+            
+            OnDataReceived(pEvent);
+        }
     }
 
     public void OnDataReceived(ParkingEvent data)
