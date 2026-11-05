@@ -11,7 +11,7 @@ traffic_state:
   window_sec: 20
   thresholds:
     busy_occupancy: 4         # รถในกรอบเฉลี่ยเกินนี้ = หนาแน่น
-    standstill_flow: 2.0      # = รถยนต์ข้าม 0 คัน ใน 20 วินาที
+    standstill_flow: 7.5      # = รถยนต์ข้าม 0-2 คัน ใน 20 วินาที
     slow_flow: 32.0           # = รถยนต์ข้าม 1-10 คัน ใน 20 วินาที
 
 # ---- ค่ารัน ----

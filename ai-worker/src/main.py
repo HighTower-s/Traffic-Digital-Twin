@@ -16,6 +16,7 @@ import argparse
 import csv
 import json
 import sys
+import time
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, TextIO
@@ -233,11 +234,15 @@ def run(args: argparse.Namespace) -> int:
     warned_zero = False
     warning: str | None = None
     paused = False
+    # นับเฉพาะเวลาที่ประมวลผลจริง — ไม่รวมตอน pause หรือรอ cv2.waitKey
+    # เพื่อให้ "ความเร็วประมวลผล" ไม่ถูกทำให้ต่ำเทียมจากเวลาที่ผู้ใช้หยุดดูจอ
+    process_elapsed = 0.0
 
     # finally ครอบทั้งลูป: กด q, Ctrl-C, หรือ crash กลางทาง ผลที่นับมาแล้วต้องไม่หาย
     try:
         while True:
             if not paused:
+                frame_start = time.perf_counter()
                 ok, frame = cap.read()
                 if not ok:
                     break
@@ -288,6 +293,7 @@ def run(args: argparse.Namespace) -> int:
                     )
                     cv2.imshow(WINDOW_NAME, overlay.resize_for_display(frame, display_ratio))
 
+                process_elapsed += time.perf_counter() - frame_start
                 frame_index += 1
                 if cfg.max_frames and frame_index >= cfg.max_frames:
                     break
@@ -317,7 +323,16 @@ def run(args: argparse.Namespace) -> int:
         if poster is not None:
             poster.close()
 
-    print_summary(vehicle_counter, frame_index, events.emitted, cfg, poster, windows_written)
+    print_summary(
+        vehicle_counter,
+        frame_index,
+        events.emitted,
+        cfg,
+        poster,
+        windows_written,
+        process_elapsed,
+        fps,
+    )
     return 0
 
 
@@ -328,9 +343,18 @@ def print_summary(
     cfg: RunConfig,
     poster: BackendPoster | None,
     windows_written: int = 0,
+    process_elapsed: float = 0.0,
+    source_fps: float = 0.0,
 ) -> None:
     print("\n" + "=" * 60)
     print(f"Processed {frames_processed} frames")
+    if process_elapsed > 0:
+        processing_fps = frames_processed / process_elapsed
+        print(
+            f"Processing speed: {processing_fps:.2f} fps "
+            f"({process_elapsed:.1f}s total, excludes pause time)"
+            + (f"  [source video: {source_fps:.2f} fps]" if source_fps > 0 else "")
+        )
     for line in vehicle_counter.summary_lines():
         print("  " + line)
     print(f"\n  Total {vehicle_counter.total_count} vehicles  |  {events_written} spawn events")

@@ -31,8 +31,8 @@ send_to_backend: true         # ส่ง spawn ตอน main (สถานะ�
 backend_url: http://localhost:3000
 
 zones:
-  - name: in
-    expectedDirection: toward
-    polygon: [[322, 1023], [1377, 1026], [1048, 418], [681, 424]]
-    line: [[322, 796], [1377, 810]]
-    occupancyPolygon: [[1377, 1042], [1004, 315], [741, 315], [314, 1054]]
+  - name: out
+    expectedDirection: away
+    polygon: [[174, 712], [1181, 713], [1050, 134], [808, 139]]
+    line: [[631, 314], [1131, 315]]
+    occupancyPolygon: [[177, 716], [1172, 714], [1038, 120], [821, 131], [277, 655]]

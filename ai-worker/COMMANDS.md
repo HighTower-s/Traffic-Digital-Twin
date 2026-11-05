@@ -133,11 +133,13 @@ python -m src.replay --from runs/event-2_slow-moving --fast
 ```
 [   0.0-  20.0s] NORMAL        in[NORMAL](occ=0.79 veh=3.0 mc=9.0)  out[NORMAL](occ=1.78 veh=12.0 mc=9.0)
 [  60.0-  80.0s] SLOW_MOVING   in[NORMAL](occ=2.68 veh=15.0 mc=9.0)  out[SLOW_MOVING](occ=4.97 veh=30.0 mc=15.0)
+[ 120.0- 140.0s] STANDSTILL    in[STANDSTILL](occ=4.19 veh=3.0 mc=3.0)  out[NORMAL](occ=0.86 veh=6.0 mc=0.0)
 [ 180.0- 200.0s] SLOW_MOVING   in[SLOW_MOVING](occ=10.90 veh=9.0 mc=9.0)  out[NORMAL](occ=0.00 veh=0.0 mc=0.0)
 
 Traffic-state summary for the whole clip:
   normal          5 windows  (50%)
-  slow_moving     5 windows  (50%)
+  standstill      3 windows  (30%)
+  slow_moving     2 windows  (20%)
 ```
 
 **`in[...]` / `out[...]` = คำตัดสินของฝั่งนั้นเอง** ส่วนตัวใหญ่ข้างหน้าคือค่ารวม (โซนที่แย่สุด)
@@ -188,8 +190,8 @@ traffic_state:
   window_sec: 20
   thresholds:
     busy_occupancy: 4         # รถในกรอบเฉลี่ยเกินนี้ = หนาแน่น
-    standstill_flow: 2.0      # = รถยนต์ข้าม 0 คัน
-    slow_flow: 32.0           # = รถยนต์ข้าม 1-10 คัน
+    standstill_flow: 7.5      # = รถยนต์ข้าม 0-2 คัน
+    slow_flow: 32.0           # = รถยนต์ข้าม 3-10 คัน
 ```
 
 ### แปลงเกณฑ์เป็น "จำนวนคัน"
@@ -200,7 +202,11 @@ traffic_state:
 |---|---|---|---|---|---|---|---|
 | flow | 0 | 3 | 6 | 12 | 24 | 30 | 33 |
 
-เกณฑ์ปัจจุบันจึงแปลว่า: `standstill` = 0 คัน · `slow_moving` = 1–10 คัน · `high_density` = 11 คันขึ้นไป
+เกณฑ์ปัจจุบันจึงแปลว่า: `standstill` = 0–2 คัน (flow < 7.5) · `slow_moving` = 3–10 คัน · `high_density` = 11 คันขึ้นไป
+
+> ปรับจาก `standstill_flow: 2.0` (= 0 คันเท่านั้น) เป็น `7.5` เมื่อ 2026-11-04 เพราะรถติดจริง
+> ในกรุงเทพมักคืบทีละนิด ไม่ได้หยุดสนิท 20 วินาทีเต็ม — ยืนยันกับ `event-2` ช่วง 120–180s
+> ที่ occupancy ไต่จาก 4.19 ถึง 9.54 แต่มีรถผ่านแค่ 1–2 คัน
 
 ### ตรรกะการตัดสิน
 

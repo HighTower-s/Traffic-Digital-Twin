@@ -42,14 +42,17 @@ python -m src.calibrate --config configs/event-2.yaml --preview
 
 ## ผลที่วัดได้จาก `event-2` (ชุดที่ใช้อยู่)
 
-เกณฑ์ปัจจุบัน `busy_occupancy: 4` · `standstill_flow: 2.0` · `slow_flow: 32.0` · `window_sec: 20`
+เกณฑ์ปัจจุบัน `busy_occupancy: 4` · `standstill_flow: 7.5` · `slow_flow: 32.0` · `window_sec: 20`
 
 ```
 normal        5 windows  (50%)
-slow_moving   5 windows  (50%)
+standstill    3 windows  (30%)
+slow_moving   2 windows  (20%)
 high_density  0 windows            <- ยังไม่มีคลิปที่เป็นสภาพนี้
-standstill    0 windows            <- ยังไม่มีคลิปที่เป็นสภาพนี้
 ```
+
+`standstill_flow` ปรับจาก `2.0` เป็น `7.5` เมื่อ 2026-11-04 — ค่าเดิมหมายถึง "รถยนต์ผ่าน
+0 คัน/20วิ" เท่านั้น ซึ่งไม่ตรงกับรถติดแบบคืบทีละนิดที่พบจริง ปรับเป็น "ผ่านไม่เกิน 2 คัน"
 
 ### ที่มาของ `busy_occupancy: 4`
 

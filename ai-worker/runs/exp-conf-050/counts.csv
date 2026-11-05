@@ -1,0 +1,6 @@
+﻿frame,videoTimeSec,trackId,type,zone,direction,x,y
+103,4.12,13,car,in,toward,822.1,802.6
+154,6.16,6,car,in,toward,590.9,799.6
+180,7.2,20,car,in,toward,839.0,802.9
+332,13.28,54,motorcycle,in,toward,985.7,804.8
+517,20.68,94,motorcycle,in,toward,983.4,804.8

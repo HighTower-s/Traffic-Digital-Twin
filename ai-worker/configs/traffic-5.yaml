@@ -10,9 +10,9 @@ video: data/input_videos/traffic-5.mp4
 traffic_state:
   window_sec: 20
   thresholds:
-    busy_occupancy: 3.0       # ยังไม่ได้จูนกับชุดนี้ — เป็นค่าเริ่มต้น
-    standstill_flow: 2.0
-    slow_flow: 12.0
+    busy_occupancy: 3.0 
+    standstill_flow: 7.5
+    slow_flow: 32.0
 
 # ---- ค่ารัน ----
 model: data/weights/yolov8s.pt

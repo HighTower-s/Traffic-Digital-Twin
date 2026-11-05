@@ -1,0 +1,40 @@
+# exp-conf-050 — traffic-1 (ถนนในมหาวิทยาลัย) conf=0.50 ใช้ทดสอบค่าขีดแบ่งความเชื่อมั่น
+
+
+
+video: data/input_videos/traffic-1.mp4
+
+traffic_state:
+  window_sec: 20
+  thresholds:
+    busy_occupancy: 3.0       # ยังไม่ได้จูนกับชุดนี้ — เป็นค่าเริ่มต้น
+    standstill_flow: 7.5
+    slow_flow: 32.0
+
+# ---- ค่ารัน ----
+model: data/weights/yolov8s.pt
+camera_id: cam-chalongkrung-01
+
+imgsz: 1280
+conf: 0.50
+tracker: bytetrack.yaml       # bytetrack.yaml หรือ botsort.yaml (สลับ ID น้อยกว่า แต่ช้ากว่า)
+device: 0                     # auto | cpu | 0
+
+show_window: false
+max_frames: 0                 # 0 = ทั้งคลิป
+emit_preview: 20
+
+send_to_backend: true         # ส่ง spawn ตอน main (สถานะจราจรต้องใช้ replay --backend)
+backend_url: http://localhost:3000
+
+zones:
+  - name: in
+    expectedDirection: toward
+    polygon: [[1569, 1452], [3234, 1443], [2148, 420], [1740, 429]]
+    line: [[1632, 1008], [2763, 972]]
+    occupancyPolygon: [[1572, 1455], [3204, 1440], [2112, 378], [1743, 384]]
+  - name: out
+    expectedDirection: away
+    polygon: [[1176, 1464], [1611, 495], [1173, 465], [9, 1233], [6, 1500]]
+    line: [[771, 693], [1542, 699]]
+    occupancyPolygon: [[1176, 1470], [1635, 450], [1206, 435], [12, 1239], [0, 1491]]
