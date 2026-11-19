@@ -129,3 +129,4 @@ COLOR_LINE: Final[dict[str, tuple[int, int, int]]] = {
 COLOR_HUD_BG: Final[tuple[int, int, int]] = (20, 24, 30)
 COLOR_HUD_TEXT: Final[tuple[int, int, int]] = (230, 237, 243)
 COLOR_WARN: Final[tuple[int, int, int]] = (60, 60, 240)
+BOX_THICKNESS: Final[int] = 7

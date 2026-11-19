@@ -216,7 +216,7 @@ def _collect_points(
     return clicked
 
 
-ZONE_FILL_ALPHA = 0.35
+ZONE_FILL_ALPHA = 0.5
 PREVIEW_COLORS = ((0, 220, 255), (255, 170, 40), (140, 255, 140), (255, 130, 255))
 
 
@@ -239,16 +239,55 @@ def run_preview(args: argparse.Namespace) -> int:
     if cfg.is_auto:
         print("[warn] The config file uses 'zones: auto' — these are guessed zones, not your own")
 
+    def draw_dashed_polygon(img, points, color, thickness, dash_len=30, gap_len=20) -> None:
+        """เส้นประพร้อมขอบดำ — ขอบดำทำให้มองเห็นได้ทั้งบนพื้นสว่างและพื้นเข้ม"""
+        pts = list(points) + [points[0]]
+        for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+            edge_len = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+            if edge_len < 1:
+                continue
+            step = dash_len + gap_len
+            for s in range(int(edge_len / step) + 1):
+                t0 = min(1.0, (s * step) / edge_len)
+                t1 = min(1.0, (s * step + dash_len) / edge_len)
+                p0 = (int(x1 + (x2 - x1) * t0), int(y1 + (y2 - y1) * t0))
+                p1 = (int(x1 + (x2 - x1) * t1), int(y1 + (y2 - y1) * t1))
+                cv2.line(img, p0, p1, (0, 0, 0), thickness + 6, cv2.LINE_AA)
+                cv2.line(img, p0, p1, color, thickness, cv2.LINE_AA)
+
+    def draw_legend(img) -> None:
+        """คำอธิบายสัญลักษณ์มุมซ้ายบน — สไลด์นำเสนอต้องอ่านออกโดยไม่ต้องมีคำบรรยายข้างนอก"""
+        rows = [
+            ((90, 90, 90), "solid", "density zone"),
+            ((255, 255, 255), "dash", "count zone"),
+            ((0, 0, 255), "solid", "counting line"),
+        ]
+        pad, line_h, sample_w = 22, 46, 86
+        box_w, box_h = 430, pad * 2 + line_h * len(rows)
+        panel = img[pad : pad + box_h, pad : pad + box_w].copy()
+        cv2.rectangle(panel, (0, 0), (box_w, box_h), (255, 255, 255), -1)
+        cv2.addWeighted(panel, 0.82, img[pad : pad + box_h, pad : pad + box_w], 0.18, 0,
+                        img[pad : pad + box_h, pad : pad + box_w])
+        cv2.rectangle(img, (pad, pad), (pad + box_w, pad + box_h), (60, 60, 60), 2)
+        for i, (color, style, label) in enumerate(rows):
+            y = pad + pad + line_h // 2 + i * line_h
+            x0 = pad + 20
+            if style == "dash":
+                for seg in range(3):
+                    sx = x0 + seg * 32
+                    cv2.line(img, (sx, y), (sx + 20, y), (0, 0, 0), 11, cv2.LINE_AA)
+                    cv2.line(img, (sx, y), (sx + 20, y), color, 6, cv2.LINE_AA)
+            else:
+                cv2.line(img, (x0, y), (x0 + sample_w, y), color, 8, cv2.LINE_AA)
+            cv2.putText(img, label, (x0 + sample_w + 24, y + 11),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.95, (30, 30, 30), 2, cv2.LINE_AA)
+
     # ระบายสีลงภาพสำรองก่อน แล้วค่อยผสมกลับ เพื่อให้โซนโปร่งแสง (ยังเห็นถนนข้างใต้)
     overlay_frame = frame.copy()
     for i, zone in enumerate(cfg.zones):
         color = PREVIEW_COLORS[i % len(PREVIEW_COLORS)]
         occupancy = np.array(zone.occupancy_area, np.int32)
         cv2.fillPoly(overlay_frame, [occupancy], color)
-        cv2.polylines(frame, [occupancy], True, color, 6)
-        cv2.polylines(frame, [np.array(zone.polygon, np.int32)], True, (255, 255, 255), 4)
-        a, b = zone.line
-        cv2.line(frame, (int(a[0]), int(a[1])), (int(b[0]), int(b[1])), (0, 0, 255), 8)
 
         has_own = bool(zone.occupancy_polygon)
         print(
@@ -257,23 +296,19 @@ def run_preview(args: argparse.Namespace) -> int:
         )
 
     cv2.addWeighted(overlay_frame, ZONE_FILL_ALPHA, frame, 1 - ZONE_FILL_ALPHA, 0, frame)
-    for i, zone in enumerate(cfg.zones):
-        anchor = min(zone.occupancy_area, key=lambda p: p[1])
-        cv2.putText(
-            frame,
-            zone.name,
-            (int(anchor[0]), max(40, int(anchor[1]) - 15)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            2.0,
-            PREVIEW_COLORS[i % len(PREVIEW_COLORS)],
-            5,
-            cv2.LINE_AA,
-        )
 
-    print(
-        "\nColours: filled = occupancyPolygon (density) | "
-        "white = counting polygon | red = counting line"
-    )
+    # เส้นขอบทึบหนาสีเข้มรอบ density zone (โฟกัสหลัก) + เส้นประรอบ count zone (ซ้อนด้านใน)
+    for i, zone in enumerate(cfg.zones):
+        color = PREVIEW_COLORS[i % len(PREVIEW_COLORS)]
+        border_color = tuple(int(c * 0.45) for c in color)
+        occupancy = np.array(zone.occupancy_area, np.int32)
+        cv2.polylines(frame, [occupancy], True, border_color, 10, cv2.LINE_AA)
+        draw_dashed_polygon(frame, zone.polygon, (255, 255, 255), 7)
+        a, b = zone.line
+        cv2.line(frame, (int(a[0]), int(a[1])), (int(b[0]), int(b[1])), (0, 0, 0), 14)
+        cv2.line(frame, (int(a[0]), int(a[1])), (int(b[0]), int(b[1])), (0, 0, 255), 8)
+
+    draw_legend(frame)
 
     display = overlay.resize_for_display(frame, overlay.fit_ratio(frame_size, DISPLAY_MAX_SIDE))
     if args.save:

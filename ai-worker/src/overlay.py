@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.constants import (
+    BOX_THICKNESS,
     COLOR_BY_TYPE,
     COLOR_HUD_BG,
     COLOR_HUD_TEXT,
@@ -45,7 +46,7 @@ def draw_zones(frame: Any, zones: tuple[Zone, ...]) -> None:
 
         line_color = COLOR_LINE.get(zone.expected_direction, COLOR_ZONE)
         a, b = zone.line
-        cv2.line(frame, (int(a[0]), int(a[1])), (int(b[0]), int(b[1])), line_color, 2)
+        cv2.line(frame, (int(a[0]), int(a[1])), (int(b[0]), int(b[1])), line_color, BOX_THICKNESS)
         cv2.putText(
             frame,
             zone.name,
@@ -65,7 +66,7 @@ def draw_detections(frame: Any, detections: list[Detection], counter: VehicleCou
         vehicle_type = counter.current_type(det.track_id)
         color = COLOR_BY_TYPE.get(vehicle_type, COLOR_UNKNOWN) if vehicle_type else COLOR_UNKNOWN
         x1, y1, x2, y2 = (int(v) for v in det.box)
-        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, BOX_THICKNESS)
         label = f"{vehicle_type or '?'} #{det.track_id}"
         cv2.putText(
             frame, label, (x1, max(0, y1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA
