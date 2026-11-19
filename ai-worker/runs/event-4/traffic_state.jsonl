@@ -1,0 +1,4 @@
+{"windowStartSec": 0.0, "windowEndSec": 20.0, "zones": {"out": {"occupancy": 16.59, "vehicleFlowRate": 15.0, "motorcycleFlowRate": 42.0}}}
+{"windowStartSec": 20.0, "windowEndSec": 40.0, "zones": {"out": {"occupancy": 15.97, "vehicleFlowRate": 42.0, "motorcycleFlowRate": 21.0}}}
+{"windowStartSec": 40.0, "windowEndSec": 60.0, "zones": {"out": {"occupancy": 13.28, "vehicleFlowRate": 30.0, "motorcycleFlowRate": 6.0}}}
+{"windowStartSec": 60.0, "windowEndSec": 77.067, "zones": {"out": {"occupancy": 18.95, "vehicleFlowRate": 35.2, "motorcycleFlowRate": 28.1}}}

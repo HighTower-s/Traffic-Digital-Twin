@@ -1,0 +1,84 @@
+# ── Environment / secrets ────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Node.js (backend, mock-server) ───────────────────────────────────────────
+node_modules/
+dist/
+*.js.map
+npm-debug.log*
+yarn-error.log*
+
+# ── Python (ai-worker) ───────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Backend — payload ที่ broadcast ออกไป บันทึกไว้ดู/ส่งต่อให้ Unity (สร้างใหม่ทุกครั้งที่รัน)
+backend/data/
+
+# AI Worker — ไฟล์ที่ผู้ใช้อัปโหลด/ผลลัพธ์ + โมเดล (ไม่ต้องขึ้น git)
+ai-worker/**/data/
+ai-worker/**/uploads/
+ai-worker/**/outputs/
+ai-worker/**/frames/
+*.pt
+*.onnx
+
+# ── Unity (ครอบทุกโปรเจกต์ใต้ unity/ — digitaltwin, Smartflow, ฯลฯ) ────────────
+# Cache ที่ Unity สร้างเอง — ห้าม commit (ใหญ่ระดับ GB)
+unity/*/Library/
+unity/*/Temp/
+unity/*/Logs/
+unity/*/obj/
+unity/*/Obj/
+unity/*/MemoryCaptures/
+unity/*/ExportedObj/
+
+# ผลลัพธ์ build (รวม WebGL)
+unity/*/Build/
+unity/*/Builds/
+
+# การตั้งค่าเฉพาะเครื่อง / IDE (Unity สร้างใหม่ได้)
+unity/*/UserSettings/
+unity/*/.vs/
+unity/*/*.csproj
+unity/*/*.sln
+unity/*/*.slnx
+unity/*/*.suo
+unity/*/*.user
+unity/*/*.pidb
+unity/*/*.booproj
+unity/*/sysinfo.txt
+
+# Asset store — vendor assets ก้อนใหญ่ ติดตั้งเองในเครื่อง
+unity/*/Assets/asset store/
+unity/*/Assets/asset\ store/
+
+# โฟลเดอร์ backup ที่ย้ายไฟล์ asset ที่ไม่ใช้ออกมา (159MB — ห้ามขึ้น git)
+_assetStore_unused/
+
+# ── 3D Models / Assets ───────────────────────────────────────────────────────
+*.fbx
+
+# ── Docker / DB data ─────────────────────────────────────────────────────────
+infra/db/data/
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editors ──────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo

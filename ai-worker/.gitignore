@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# หมายเหตุ: data/ (input_videos, output_results, weights) ถูก ignore ทั้งโฟลเดอร์
+# ที่ root .gitignore แล้ว (ai-worker/**/data/) — โฟลเดอร์นี้จึงว่างเปล่าตั้งใจ
+# สร้างเองตอน setup ครั้งแรก (mkdir -p data/{input_videos,output_results,weights})

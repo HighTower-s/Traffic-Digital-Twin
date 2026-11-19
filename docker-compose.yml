@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: smartflow-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-smartflow}
+      POSTGRES_USER: ${POSTGRES_USER:-smartflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./infra/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smartflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  timescaledb_data:

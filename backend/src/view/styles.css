@@ -1,0 +1,532 @@
+/* Smart Flow — dev dashboard
+   ธีมขาว ไม่พึ่ง CDN/ฟอนต์ภายนอกเลย เพราะเซิร์ฟเวอร์ KMITL อาจไม่มีเน็ตตอนเดโม */
+
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --sunken: #f2f4f7;
+  --border: #eaecf0;
+
+  --ink: #101828;
+  --ink-2: #475467;
+  --ink-3: #98a2b3;
+
+  --accent: #12b76a;
+  --accent-bg: #ecfdf3;
+  --accent-ink: #027a48;
+
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-lg: 0 4px 12px rgba(16, 24, 40, 0.06);
+  --radius: 16px;
+  --radius-sm: 10px;
+
+  --sidebar-w: 240px;
+
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'Cascadia Code', 'SF Mono', Consolas, 'Liberation Mono', monospace;
+}
+
+/* ชนิดรถ — ใช้กับ chip ใน feed และตาราง */
+[data-type='car']        { --chip-bg: #eff8ff; --chip-ink: #175cd3; }
+[data-type='truck']      { --chip-bg: #fffaeb; --chip-ink: #b54708; }
+[data-type='motorcycle'] { --chip-bg: #ecfdf3; --chip-ink: #027a48; }
+[data-type='bus']        { --chip-bg: #f4f3ff; --chip-ink: #5925dc; }
+
+/* สถานะจราจร — ไล่ระดับความรุนแรง เขียว -> เหลือง -> ส้ม -> แดง
+   สีไม่เคยสื่อความหมายลำพัง: chip มีชื่อสถานะกำกับ timeline มี legend + tooltip */
+[data-state='normal']       { --st-fill: #0ca30c; --st-bg: #ecfdf3; --st-ink: #027a48; }
+[data-state='high_density'] { --st-fill: #fab219; --st-bg: #fffaeb; --st-ink: #b54708; }
+[data-state='slow_moving']  { --st-fill: #ec835a; --st-bg: #fff4ed; --st-ink: #c4320a; }
+[data-state='standstill']   { --st-fill: #d03b3b; --st-bg: #fef3f2; --st-ink: #b42318; }
+[data-state='']             { --st-fill: var(--border); --st-bg: var(--sunken); --st-ink: var(--ink-3); }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------------------------------------------------------- shell */
+
+.shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: 24px 32px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ---------------------------------------------------------------- sidebar */
+
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
+
+.brand-mark {
+  width: 32px; height: 32px;
+  border-radius: 9px;
+  background: var(--accent);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.brand-name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+
+.nav { display: flex; flex-direction: column; gap: 2px; }
+
+.nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nav a:hover { background: var(--sunken); color: var(--ink); }
+.nav a.active { background: var(--accent-bg); color: var(--accent-ink); }
+.nav a svg { flex-shrink: 0; }
+
+.sidebar-foot {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding: 16px 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.sidebar-foot .meta { word-break: break-all; }
+.sidebar-foot .meta strong { color: var(--ink-2); font-weight: 500; }
+
+/* ---------------------------------------------------------------- status */
+
+.status { display: flex; align-items: center; gap: 7px; font-weight: 500; color: var(--ink-2); }
+
+.status .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #f04438;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.status.online .dot { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+.status.online { color: var(--accent-ink); }
+
+/* ---------------------------------------------------------------- topbar */
+
+.topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.topbar h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+.topbar .sub { color: var(--ink-3); font-size: 13px; margin-top: 2px; }
+
+.btn {
+  font: inherit;
+  font-weight: 500;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover { background: var(--sunken); border-color: #d0d5dd; }
+.btn:active { transform: scale(0.985); }
+
+/* ---------------------------------------------------------------- card */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.card-title { font-size: 15px; font-weight: 600; }
+.card-note { font-size: 12px; color: var(--ink-3); }
+
+section { scroll-margin-top: 20px; }
+
+/* ---------------------------------------------------------------- hero */
+
+.hero { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+
+.state-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--st-bg);
+  color: var(--st-ink);
+  border-radius: 999px;
+  padding: 10px 22px 10px 16px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.state-chip .bullet { width: 12px; height: 12px; border-radius: 50%; background: var(--st-fill); flex-shrink: 0; }
+
+.hero-meta { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--ink-3); }
+.hero-meta strong { color: var(--ink-2); font-weight: 500; }
+
+/* ---------------------------------------------------------------- timeline */
+
+/* แถบละโซน — ถนน 2 ฝั่งติดไม่พร้อมกัน แถบเดียวจึงเล่าเรื่องไม่ครบ */
+.tl-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.tl-row:last-child { margin-bottom: 0; }
+
+.tl-label {
+  width: 44px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+
+.timeline {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 2px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--sunken);
+}
+
+.timeline .seg {
+  flex: 1 1 0;
+  min-width: 3px;
+  background: var(--st-fill);
+  transition: opacity 0.15s;
+}
+.timeline .seg:hover { opacity: 0.72; }
+
+/* padding ซ้ายต้องเท่ากับ .tl-label + gap ไม่งั้นแกนเวลาเลื่อนไม่ตรงกับแถบ */
+.timeline-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 8px;
+  padding-left: 54px;
+}
+
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 14px; font-size: 12px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--st-fill); flex-shrink: 0; }
+
+/* ---------------------------------------------------------------- stats */
+
+.grid { display: grid; gap: 16px; }
+.grid-stats { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.grid-zones { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+
+.stat .label { font-size: 12px; color: var(--ink-3); font-weight: 500; }
+.stat .value { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.stat .sub { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.stat.accent .value { color: var(--accent-ink); }
+
+/* ---------------------------------------------------------------- zone */
+
+.zone-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+
+.zone-name {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  background: var(--sunken);
+  border-radius: 6px;
+  padding: 3px 9px;
+}
+
+.zone-main { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 10px 0 14px; }
+.zone-occ { font-size: 34px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.zone-occ-label { font-size: 12px; color: var(--ink-3); }
+
+.spark { display: block; overflow: visible; }
+.spark-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.spark-range { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.zone-flows { display: flex; gap: 10px; }
+
+.flow {
+  flex: 1;
+  background: var(--sunken);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.flow .k { font-size: 11px; color: var(--ink-3); }
+.flow .v { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 1px; }
+.flow.is-key { background: var(--accent-bg); }
+.flow.is-key .k, .flow.is-key .v { color: var(--accent-ink); }
+
+/* ---------------------------------------------------------------- table */
+
+table { width: 100%; border-collapse: collapse; }
+
+thead th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+  padding: 0 12px 10px;
+  border-bottom: 1px solid var(--border);
+}
+thead th:not(:first-child), tbody td:not(:first-child) { text-align: right; }
+
+tbody td { padding: 12px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+tbody tr:last-child td { border-bottom: none; }
+tbody td.total { font-weight: 600; }
+
+/* ตารางกว้างต้อง scroll ในกรอบตัวเอง ไม่ใช่ดัน layout ทั้งหน้า
+   grid item มี min-width: auto เป็นค่าเริ่มต้น = ไม่ยอมหดให้เล็กกว่าเนื้อหา
+   ต้อง min-width: 0 ตลอดสาย ไม่งั้น overflow-x ข้างล่างไม่มีผลเลย */
+.page.grid > *,
+.page.grid > * > .card { min-width: 0; }
+
+.table-scroll { overflow-x: auto; }
+
+/* 2 โซน = window + (occ/veh/mc/state) x2 + overall = 10 คอลัมน์ */
+table.dense { min-width: 880px; }
+table.dense thead th { padding: 0 10px 8px; white-space: nowrap; }
+table.dense tbody td { padding: 8px 10px; font-size: 13px; }
+table.dense .win { color: var(--ink-2); white-space: nowrap; }
+table.dense .win .mmss { color: var(--ink-3); margin-left: 9px; font-size: 12px; }
+table.dense .zone-sep { border-left: 1px solid var(--border); }
+
+.chip {
+  display: inline-block;
+  background: var(--chip-bg);
+  color: var(--chip-ink);
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------- feed */
+
+.feed { display: flex; flex-direction: column; }
+
+.feed-row { border-bottom: 1px solid var(--border); }
+.feed-row:last-child { border-bottom: none; }
+
+.feed-row summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 4px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.feed-row summary::-webkit-details-marker { display: none; }
+.feed-row summary:hover { color: var(--ink); }
+
+.feed-row .time { color: var(--ink-3); font-variant-numeric: tabular-nums; width: 74px; flex-shrink: 0; }
+.feed-row .track { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+.feed-row .dir { margin-left: auto; font-size: 12px; color: var(--ink-3); }
+.feed-row .conf { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; width: 46px; text-align: right; }
+
+.feed-row pre {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--sunken);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin: 0 0 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+@keyframes flash { from { background: var(--accent-bg); } to { background: transparent; } }
+.flash { animation: flash 0.6s ease; }
+
+/* ---------------------------------------------------------------- state page */
+
+/* ชิปสรุปต่อสถานะ — ใช้ token [data-state] ชุดเดียวกับ timeline จึงได้สีตรงกันทั้งระบบ */
+.stat.state-sum .label { display: flex; align-items: center; gap: 7px; }
+.stat.state-sum .label i { width: 9px; height: 9px; border-radius: 50%; background: var(--st-fill); flex-shrink: 0; }
+.stat.state-sum .value { color: var(--st-ink); }
+
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--st-bg);
+  color: var(--st-ink);
+  border-radius: 999px;
+  padding: 3px 11px 3px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.verdict i { width: 7px; height: 7px; border-radius: 50%; background: var(--st-fill); flex-shrink: 0; }
+
+/* ---------------------------------------------------------------- segmented filter */
+
+.segmented {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  box-shadow: var(--shadow);
+  align-self: flex-start;
+  flex-wrap: wrap;
+}
+
+.segmented button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: background 0.15s, color 0.15s;
+}
+.segmented button:hover { background: var(--sunken); }
+.segmented button.active { background: var(--accent-bg); color: var(--accent-ink); }
+
+.segmented .count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  background: var(--sunken);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+.segmented button.active .count { background: var(--surface); }
+
+/* ---------------------------------------------------------------- json log */
+
+.log { display: flex; flex-direction: column; }
+
+.log-row { border-bottom: 1px solid var(--border); padding: 12px 0; }
+.log-row:first-child { padding-top: 0; }
+.log-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+.log-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; flex-wrap: wrap; }
+.log-head .time { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.log-head .summary { color: var(--ink-2); font-family: var(--mono); font-size: 12px; }
+
+.channel {
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--mono);
+}
+.channel[data-channel='spawn'] { background: #eff8ff; color: #175cd3; }
+.channel[data-channel='traffic_state'] { background: var(--accent-bg); color: var(--accent-ink); }
+
+.log-row pre {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--sunken);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ---------------------------------------------------------------- empty */
+
+.empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.9;
+  background: var(--sunken);
+  border-radius: var(--radius-sm);
+}
+
+.empty code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+
+[hidden] { display: none !important; }
+
+/* ---------------------------------------------------------------- responsive */
+
+@media (max-width: 900px) {
+  .shell { flex-direction: column; }
+
+  .sidebar {
+    width: auto;
+    height: auto;
+    position: static;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .nav { flex-direction: row; gap: 4px; }
+  .nav a { padding: 7px 10px; white-space: nowrap; }
+  .nav a span { display: none; }
+
+  .sidebar-foot { margin: 0 0 0 auto; border-top: none; padding: 0; }
+  .sidebar-foot .meta { display: none; }
+
+  .main { padding: 20px 16px 40px; }
+  .topbar h1 { font-size: 22px; }
+}

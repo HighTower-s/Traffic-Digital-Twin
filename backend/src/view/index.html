@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Flow — Live Monitor</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 17h4l3-10 3 14 3-8h3" />
+        </svg>
+      </div>
+      <div class="brand-name">Smart Flow</div>
+    </div>
+
+    <nav class="nav">
+      <a href="#overview" data-page="overview">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span>Overview</span>
+      </a>
+      <a href="#state" data-page="state">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+        <span>Traffic state</span>
+      </a>
+      <a href="#json" data-page="json">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1"/><path d="M16 4h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"/></svg>
+        <span>JSON</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="status" id="status"><span class="dot"></span><span id="status-label">connecting…</span></div>
+      <div class="meta">camera <strong id="meta-camera">—</strong></div>
+      <div class="meta">since <strong id="meta-since">—</strong></div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <h1 id="page-title">Live Monitor</h1>
+        <div class="sub" id="page-sub">Realtime feed from AI Worker · Prototype</div>
+      </div>
+      <button class="btn" id="reset-btn" type="button">Reset counters</button>
+    </div>
+
+    <!-- ============================================================ overview -->
+    <div class="page grid" id="page-overview" style="gap:28px">
+
+      <div class="card hero">
+        <div class="state-chip" id="state-chip" data-state="">
+          <span class="bullet"></span><span id="state-name">waiting…</span>
+        </div>
+        <div class="hero-meta">
+          <div>window <strong id="state-window">—</strong></div>
+          <div>updated <strong id="state-age">never</strong></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Traffic state timeline</div>
+          <div class="card-note" id="timeline-note">no windows yet</div>
+        </div>
+
+        <div class="empty" id="timeline-empty">
+          Waiting for the first traffic-state window…<br />
+          <code>python -m src.replay --backend</code> sends them — plain <code>src.replay</code> and <code>src.main</code> do not.
+        </div>
+
+        <div id="timeline-wrap" hidden>
+          <div id="timeline-rows"></div>
+          <div class="timeline-axis">
+            <span id="timeline-start">—</span>
+            <span id="timeline-end">—</span>
+          </div>
+          <div class="legend">
+            <span data-state="normal"><i></i>normal</span>
+            <span data-state="high_density"><i></i>high density</span>
+            <span data-state="slow_moving"><i></i>slow moving</span>
+            <span data-state="standstill"><i></i>standstill</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-stats">
+        <div class="card stat accent">
+          <div class="label">Vehicles counted</div>
+          <div class="value" id="stat-all">—</div>
+          <div class="sub">since server start</div>
+        </div>
+        <div class="card stat">
+          <div class="label">Inbound</div>
+          <div class="value" id="stat-in">—</div>
+          <div class="sub">direction in</div>
+        </div>
+        <div class="card stat">
+          <div class="label">Outbound</div>
+          <div class="value" id="stat-out">—</div>
+          <div class="sub">direction out</div>
+        </div>
+        <div class="card stat">
+          <div class="label">State windows</div>
+          <div class="value" id="stat-windows">0</div>
+          <div class="sub">received this session</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-head">
+          <div class="card-title">Zones</div>
+          <div class="card-note">occupancy = vehicles inside the zone · flow = crossings per minute</div>
+        </div>
+        <div class="empty" id="zones-empty">
+          Waiting for traffic-state data…<br />
+          Run <code>python -m src.replay --backend</code> to populate.
+        </div>
+        <div class="grid grid-zones" id="zone-grid"></div>
+      </div>
+
+      <div>
+        <div class="card-head">
+          <div class="card-title">Vehicles by type</div>
+        </div>
+        <div class="card">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th>Type</th><th>In</th><th>Out</th><th>Total</th></tr>
+              </thead>
+              <tbody id="type-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-head">
+          <div class="card-title">Spawn event feed</div>
+          <div class="card-note">newest first · click a row for the raw payload</div>
+        </div>
+        <div class="card">
+          <div class="empty" id="feed-empty">Waiting for spawn events…</div>
+          <div class="feed" id="feed-list"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================ traffic state -->
+    <div class="page grid" id="page-state" style="gap:28px" hidden>
+
+      <div class="grid grid-stats" id="state-summary"></div>
+
+      <div>
+        <div class="card-head">
+          <div class="card-title">Every window received</div>
+          <div class="card-note" id="state-table-note">oldest first · matches what <code>replay --fast</code> prints</div>
+        </div>
+        <div class="card">
+          <div class="empty" id="state-empty">
+            No traffic-state windows yet…<br />
+            Run <code>python -m src.replay --backend</code> to populate.
+          </div>
+          <div class="table-scroll" id="state-table-wrap" hidden>
+            <table class="dense">
+              <thead id="state-thead"></thead>
+              <tbody id="state-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================ json -->
+    <div class="page grid" id="page-json" style="gap:20px" hidden>
+
+      <div>
+        <div class="segmented" id="json-filter">
+          <button type="button" data-filter="all" class="active">All <span class="count" id="count-all">0</span></button>
+          <button type="button" data-filter="spawn">spawn <span class="count" id="count-spawn">0</span></button>
+          <button type="button" data-filter="traffic_state">traffic_state <span class="count" id="count-traffic_state">0</span></button>
+        </div>
+        <div class="card-note" style="margin-top:10px">counts are totals received · the last 100 payloads are kept below</div>
+      </div>
+
+      <div class="card">
+        <div class="empty" id="json-empty">
+          Nothing received yet…<br />
+          Raw payloads from both Socket.io channels land here as they arrive.
+        </div>
+        <div class="log" id="json-log"></div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

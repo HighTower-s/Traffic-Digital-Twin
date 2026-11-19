@@ -1,0 +1,3 @@
+﻿frame,videoTimeSec,trackId,type,zone,direction,x,y,reason
+370,12.328,56,motorcycle,out,toward,1172.9,1114.5,wrong_direction
+371,12.361,56,motorcycle,out,away,1175.5,1114.6,already_counted

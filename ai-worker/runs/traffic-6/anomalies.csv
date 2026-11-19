@@ -1,0 +1,5 @@
+﻿frame,videoTimeSec,trackId,type,zone,direction,x,y,reason
+32,1.066,1,car,out,away,1255.6,917.9,outside_polygon
+166,5.531,4,truck,out,away,459.0,857.7,outside_polygon
+644,21.457,173,truck,in,away,1764.5,1500.0,wrong_direction
+645,21.49,173,truck,in,toward,1765.0,1500.0,already_counted

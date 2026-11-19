@@ -1,0 +1,5 @@
+{"windowStartSec": 0.0, "windowEndSec": 20.0, "zones": {"in": {"occupancy": 0.96, "vehicleFlowRate": 18.0, "motorcycleFlowRate": 0.0}, "out": {"occupancy": 0.93, "vehicleFlowRate": 6.0, "motorcycleFlowRate": 12.0}}}
+{"windowStartSec": 20.0, "windowEndSec": 40.0, "zones": {"in": {"occupancy": 1.21, "vehicleFlowRate": 9.0, "motorcycleFlowRate": 12.0}, "out": {"occupancy": 1.19, "vehicleFlowRate": 15.0, "motorcycleFlowRate": 9.0}}}
+{"windowStartSec": 40.0, "windowEndSec": 60.0, "zones": {"in": {"occupancy": 1.79, "vehicleFlowRate": 18.0, "motorcycleFlowRate": 12.0}, "out": {"occupancy": 1.24, "vehicleFlowRate": 18.0, "motorcycleFlowRate": 12.0}}}
+{"windowStartSec": 60.0, "windowEndSec": 80.0, "zones": {"in": {"occupancy": 1.23, "vehicleFlowRate": 18.0, "motorcycleFlowRate": 12.0}, "out": {"occupancy": 0.74, "vehicleFlowRate": 3.0, "motorcycleFlowRate": 12.0}}}
+{"windowStartSec": 80.0, "windowEndSec": 92.829, "zones": {"in": {"occupancy": 2.43, "vehicleFlowRate": 14.0, "motorcycleFlowRate": 23.4}, "out": {"occupancy": 1.18, "vehicleFlowRate": 23.4, "motorcycleFlowRate": 0.0}}}

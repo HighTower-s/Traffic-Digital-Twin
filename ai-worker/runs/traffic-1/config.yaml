@@ -1,0 +1,38 @@
+
+
+video: data/input_videos/traffic-1.mp4
+
+traffic_state:
+  window_sec: 20
+  thresholds:
+    busy_occupancy: 3.0       # ยังไม่ได้จูนกับชุดนี้ — เป็นค่าเริ่มต้น
+    standstill_flow: 7.5
+    slow_flow: 12.0
+
+# ---- ค่ารัน ----
+model: data/weights/yolov8s.pt
+camera_id: cam-chalongkrung-01
+
+imgsz: 1280
+conf: 0.35
+tracker: bytetrack.yaml       # bytetrack.yaml หรือ botsort.yaml (สลับ ID น้อยกว่า แต่ช้ากว่า)
+device: 0                     # auto | cpu | 0
+
+show_window: true
+max_frames: 0                 # 0 = ทั้งคลิป
+emit_preview: 20
+
+send_to_backend: true         # ส่ง spawn ตอน main (สถานะจราจรต้องใช้ replay --backend)
+backend_url: http://localhost:3000
+
+zones:
+  - name: in
+    expectedDirection: toward
+    polygon: [[1539, 1443], [3234, 1422], [2160, 435], [1737, 453]]
+    line: [[1611, 945], [2850, 939]]
+    occupancyPolygon: [[1587, 1464], [1758, 351], [2097, 357], [3165, 1440], [3159, 1437], [3147, 1437]]
+  - name: out
+    expectedDirection: away
+    polygon: [[1128, 459], [0, 1167], [15, 1497], [1272, 1476], [1629, 477]]
+    line: [[750, 660], [1590, 681]]
+    occupancyPolygon: [[1167, 1461], [9, 1497], [3, 1188], [1269, 393], [1650, 381]]

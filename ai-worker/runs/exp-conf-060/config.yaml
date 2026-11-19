@@ -1,0 +1,25 @@
+# Experiment 1.2 — Confidence Threshold 0.60 (standard default)
+video: data/input_videos/event-1.mp4
+traffic_state:
+  window_sec: 20
+  thresholds:
+    busy_occupancy: 3.0
+    standstill_flow: 2.0
+    slow_flow: 12.0
+model: data/weights/yolov8s.pt
+camera_id: cam-chalongkrung-01
+imgsz: 1280
+conf: 0.60
+tracker: bytetrack.yaml
+device: 0
+show_window: false
+max_frames: 0
+emit_preview: 0
+send_to_backend: false
+backend_url: http://localhost:3000
+zones:
+  - name: in
+    expectedDirection: toward
+    polygon: [[322, 1023], [1377, 1026], [1048, 418], [681, 424]]
+    line: [[322, 796], [1377, 810]]
+    occupancyPolygon: [[1377, 1042], [1004, 315], [741, 315], [314, 1054]]

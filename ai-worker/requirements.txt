@@ -1,0 +1,15 @@
+# AI Worker — วิเคราะห์วิดีโอในเครื่อง
+ultralytics>=8.2.0
+opencv-python>=4.9
+numpy>=1.26
+pyyaml>=6.0
+httpx>=0.27          # POST spawn event เข้า backend/api/ingest (เปิดด้วย send_to_backend: true)
+
+# เครื่องมือพัฒนา
+pytest>=8.0
+black>=24.0
+ruff>=0.4
+
+# หมายเหตุ: torch ติดมากับ ultralytics แต่การ์ด RTX 50-series (Blackwell, sm_120)
+# ต้องใช้ wheel ที่ build กับ CUDA 12.8 ขึ้นไป ไม่งั้น torch.cuda.is_available() จะเป็น False
+# ติดตั้งแยก:  pip install torch --index-url https://download.pytorch.org/whl/cu128

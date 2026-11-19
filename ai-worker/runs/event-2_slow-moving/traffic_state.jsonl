@@ -1,0 +1,10 @@
+{"windowStartSec": 0.0, "windowEndSec": 20.0, "zones": {"in": {"occupancy": 0.79, "vehicleFlowRate": 3.0, "motorcycleFlowRate": 9.0}, "out": {"occupancy": 1.78, "vehicleFlowRate": 12.0, "motorcycleFlowRate": 9.0}}}
+{"windowStartSec": 20.0, "windowEndSec": 40.0, "zones": {"in": {"occupancy": 0.66, "vehicleFlowRate": 3.0, "motorcycleFlowRate": 6.0}, "out": {"occupancy": 0.89, "vehicleFlowRate": 6.0, "motorcycleFlowRate": 3.0}}}
+{"windowStartSec": 40.0, "windowEndSec": 60.0, "zones": {"in": {"occupancy": 2.24, "vehicleFlowRate": 18.0, "motorcycleFlowRate": 6.0}, "out": {"occupancy": 3.56, "vehicleFlowRate": 12.0, "motorcycleFlowRate": 9.0}}}
+{"windowStartSec": 60.0, "windowEndSec": 80.0, "zones": {"in": {"occupancy": 2.68, "vehicleFlowRate": 15.0, "motorcycleFlowRate": 9.0}, "out": {"occupancy": 4.97, "vehicleFlowRate": 30.0, "motorcycleFlowRate": 15.0}}}
+{"windowStartSec": 80.0, "windowEndSec": 100.0, "zones": {"in": {"occupancy": 1.97, "vehicleFlowRate": 6.0, "motorcycleFlowRate": 15.0}, "out": {"occupancy": 2.49, "vehicleFlowRate": 6.0, "motorcycleFlowRate": 21.0}}}
+{"windowStartSec": 100.0, "windowEndSec": 120.0, "zones": {"in": {"occupancy": 3.77, "vehicleFlowRate": 12.0, "motorcycleFlowRate": 0.0}, "out": {"occupancy": 2.21, "vehicleFlowRate": 3.0, "motorcycleFlowRate": 3.0}}}
+{"windowStartSec": 120.0, "windowEndSec": 140.0, "zones": {"in": {"occupancy": 4.19, "vehicleFlowRate": 3.0, "motorcycleFlowRate": 3.0}, "out": {"occupancy": 0.86, "vehicleFlowRate": 6.0, "motorcycleFlowRate": 0.0}}}
+{"windowStartSec": 140.0, "windowEndSec": 160.0, "zones": {"in": {"occupancy": 6.97, "vehicleFlowRate": 3.0, "motorcycleFlowRate": 6.0}, "out": {"occupancy": 0.54, "vehicleFlowRate": 3.0, "motorcycleFlowRate": 0.0}}}
+{"windowStartSec": 160.0, "windowEndSec": 180.0, "zones": {"in": {"occupancy": 9.54, "vehicleFlowRate": 6.0, "motorcycleFlowRate": 18.0}, "out": {"occupancy": 0.35, "vehicleFlowRate": 0.0, "motorcycleFlowRate": 3.0}}}
+{"windowStartSec": 180.0, "windowEndSec": 200.0, "zones": {"in": {"occupancy": 10.9, "vehicleFlowRate": 9.0, "motorcycleFlowRate": 9.0}, "out": {"occupancy": 0.0, "vehicleFlowRate": 0.0, "motorcycleFlowRate": 0.0}}}
