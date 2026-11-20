@@ -1,177 +1,213 @@
-# Smart Flow — Digital Twin for KMITL Smart Mobility
+<div align="center">
 
-> Senior project — KMITL, Faculty of IT | Team: 2 developers | Phase: Prototype (MVP in progress)
+<img src="docs/figures/logo.svg" width="120" alt="Smart Flow logo" />
 
-Digital Twin that ingests traffic video, counts vehicles crossing a line with
-YOLOv8 (type + direction), and renders spawn events live in a Unity scene.
+# Smart Flow
 
----
+**A traffic digital twin that sees what vehicle counting alone misses — gridlock hidden behind weaving motorcycles.**
 
-## Architecture (Prototype — current)
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-20_LTS-339933?logo=nodedotjs&logoColor=white)
+![Unity](https://img.shields.io/badge/Unity-6000.4-000000?logo=unity&logoColor=white)
+![YOLOv8](https://img.shields.io/badge/YOLOv8s-ByteTrack-00FFFF?logo=yolo&logoColor=black)
+![Status](https://img.shields.io/badge/status-prototype-F36F13)
 
-```
-video file (.mp4)
-    │
-    ▼
-┌─────────────┐   HTTP POST /api/ingest   ┌─────────────┐   WebSocket ("spawn" + "spawn_vehicle")   ┌──────────────┐
-│  AI Worker  │ ────────────────────────▶ │   Backend   │ ──────────────────────────────────────▶ │    Unity     │
-│  (Python)   │      spawn-event JSON     │  (Node.js)  │        raw + wrapped/trimmed payload      │              │
-└─────────────┘                           └─────────────┘                                           └──────────────┘
-```
+**English** · [ไทย](README.th.md)
 
-- **No database in this phase** — Backend keeps vehicle counts in memory only
-  (`GET /api/stats`). TimescaleDB is planned for a later MVP phase, once the
-  pipeline produces real positions/speed again — see `docs/architecture.md`.
-- **No mock-server or RTSP in this phase** — AI Worker reads an uploaded/local
-  video file, not a live camera feed. See `ai-worker/CLAUDE.md` for the roadmap
-  back to real-time RTSP + position tracking.
-- Backend broadcasts **two** WebSocket events per spawn-event: `"spawn"` (raw,
-  unmodified — used by the backend's own dev dashboard) and `"spawn_vehicle"`
-  (wrapped + trimmed to only the fields Unity needs) — see
-  `docs/data-contract.md` §2c.
+</div>
 
 ---
 
-## Prerequisites
+## The problem
 
-| Tool | Version | Notes |
+On Thai roads, cars can be at a **complete standstill** while motorcycles keep filtering
+through the gaps. Count them together and the road still looks like it's flowing.
+
+Measured on real footage from Chalong Krung Road, KMITL:
+
+| 20-second window | Cars crossed | Motorcycles crossed |
 |---|---|---|
-| Node.js | 20 LTS | Backend |
-| Python | 3.11 | AI Worker |
-| Unity | 6000.3.19f1 | Open via Unity Hub — installs this exact version if missing |
-| git | any recent | Required — Unity resolves the `SocketIOUnity` package directly from a GitHub URL |
-| NVIDIA GPU (optional) | CUDA 12.8+ compatible | Speeds up YOLO inference ~10x+. Not required — falls back to CPU |
+| 2:40–3:00, inbound lane | **2** | **6** |
+
+- **Counted together** → 24 veh/min → system says *Slow Moving* — road appears to flow
+- **Counted separately** → 6 veh/min → system says *Standstill* — matches reality
+
+Smart Flow separates motorcycle flow from the congestion decision, then renders the
+result as a live 3D scene.
 
 ---
 
-## Quick Start
+## How it works
 
-### 0. Check out the working branch
-
-```bash
-git checkout conect-ai-worker-backend-unity
-git pull
 ```
-This branch has the integrated Prototype work (backend, AI Worker, Unity connection).
-`main` is behind and does not yet reflect this.
+video / CCTV
+     │
+     ▼
+┌─────────────┐  HTTP POST  ┌─────────────┐  Socket.IO  ┌──────────────┐
+│  AI Worker  │ ──────────▶ │   Backend   │ ──────────▶ │    Unity     │
+│   Python    │  JSON per   │   Node.js   │  broadcast  │  3D scene    │
+│ YOLOv8s +   │   vehicle   │  validate   │             │  + dashboard │
+│ ByteTrack   │  + per 20s  │  + relay    │             │              │
+└─────────────┘             └─────────────┘             └──────────────┘
+```
 
-### 1. Backend
+Two independent data streams:
+
+| Stream | Trigger | Carries |
+|---|---|---|
+| `spawn-event` | each vehicle crossing the counting line | track id, type, direction |
+| `traffic-state` | every 20 seconds | occupancy, flow rates, traffic verdict |
+
+**The backend never alters payloads** — one documented exception trims the vehicle event
+to the five fields Unity actually renders.
+
+---
+
+## Traffic states
+
+Judged per lane, every 20 seconds, from two measurements:
+
+| | Meaning | Unit |
+|---|---|---|
+| **Occupancy** | vehicles sitting in the zone — *including stopped ones* | veh / frame |
+| **Flow rate** | vehicles crossing the line — *motorcycles excluded* | veh / min |
+
+Counting stopped vehicles is what makes an empty road distinguishable from a jammed one —
+both have zero flow.
+
+| State | Condition |
+|---|---|
+| `normal` | occupancy < 4.0 |
+| `standstill` | occupancy ≥ 4.0 **and** flow < 7.5 |
+| `slow_moving` | occupancy ≥ 4.0 **and** 7.5 ≤ flow < 32.0 |
+| `high_density` | occupancy ≥ 4.0 **and** flow ≥ 32.0 |
+
+> Thresholds are calibrated per camera angle and are **relative**, not veh/km —
+> they are not Level of Service (LOS) grades.
+
+---
+
+## Results
+
+Ground truth counted by hand, frame by frame, before looking at any system output.
+
+**Vehicle counting** — 255 real vehicles across 5 clips
+
+| Type | Ground truth | Precision | Recall | F1 |
+|---|---|---|---|---|
+| Car | 132 | 0.845 | 0.826 | 0.835 |
+| **Motorcycle** | 97 | 0.859 | **0.876** | **0.867** |
+| Bus / Truck | 26 | 0.500 | 0.615 | 0.552 |
+| **Overall** | **255** | **0.808** | **0.824** | **0.816** |
+
+Motorcycles — predicted to be the hardest class — scored highest, which is what the
+1280 px input size and 0.35 confidence threshold were tuned for.
+
+**Traffic state classification** — 85% correct (17 of 20 labelled windows), with
+**zero** cases of a standstill being reported as normal traffic.
+
+**Motorcycle separation** — across all 20 zone-windows, 3 verdicts changed when
+motorcycles were folded back into the flow rate. Two of those were consecutive
+standstill windows being masked as *slow moving* — 40 seconds of real congestion
+the conventional method never sees.
+
+---
+
+## Quick start
+
+### Backend
 
 ```bash
 cd backend
 npm install
-cp .env.example .env      # optional — PORT defaults to 3000 either way
 npm run dev
-# → Backend running on http://localhost:3000
-# → open http://localhost:3000/ for the live dev dashboard
+# → http://localhost:3000        API
+# → http://localhost:3000/       live dev dashboard
 ```
 
-### 2. AI Worker
+### AI Worker
 
 ```bash
 cd ai-worker
-python -m venv .venv && .venv\Scripts\activate    # Windows
+python -m venv .venv && .venv\Scripts\activate     # Windows
 pip install -r requirements.txt
-```
-
-`ai-worker/**/data/` is entirely gitignored (video files, model weights, output
-are never committed) — set up locally:
-
-```bash
 mkdir -p data/input_videos data/output_results data/weights
 ```
 
-- Put your own `.mp4` in `data/input_videos/`, then point `video:` at it in the
-  config file you're using — one file per camera angle under `configs/`
-  (see [`ai-worker/configs/README.md`](ai-worker/configs/README.md)).
-- `yolov8s.pt` doesn't need to be downloaded manually — `ultralytics` fetches it
-  automatically on first run if `data/weights/` is empty.
+Drop an `.mp4` into `data/input_videos/`, point `video:` at it in a config under
+`configs/`, then:
 
-**If you have an NVIDIA GPU**, `pip install -r requirements.txt` alone installs
-a **CPU-only** build of torch (much slower). Reinstall matched to your GPU:
+```bash
+python -m src.main                      # detect, count, measure
+python -m src.main --replay             # ...then classify and print verdicts
+python -m src.replay --backend          # send traffic states to the backend
+```
+
+With an NVIDIA GPU, reinstall torch matched to your CUDA version — the default
+`requirements.txt` pulls a CPU-only build:
 
 ```bash
 pip uninstall torch torchvision -y
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 ```
-`cu128` matches RTX 40/50-series (Blackwell/Ada). Check
-[pytorch.org](https://pytorch.org/get-started/locally/) for the right index URL
-if your card is older/different. No GPU → skip this, CPU-only still works, just slower.
 
-Run it:
-```bash
-python -m src.main                 # writes data/output_results/{events.jsonl,counts.csv,anomalies.csv,traffic_state.jsonl}
-python -m src.main --config configs/traffic-5.yaml   # another camera angle
-python -m src.main --replay        # detect, then classify + print verdicts in one go
-```
-Default config is `configs/event-2.yaml`. Set `send_to_backend: true` in that
-file (off by default) to also POST each spawn-event to the running backend in
-real time. Traffic-state verdicts are sent by `python -m src.replay --backend`
-— see [`ai-worker/COMMANDS.md`](ai-worker/COMMANDS.md).
+### Unity
 
-### 3. Unity
-
-1. Open `unity/Smartflow/` via **Unity Hub** (installs `6000.3.19f1` if you don't have it).
-2. First open resolves `Packages/manifest.json` automatically, including
-   `com.itisnajim.socketiounity` pulled directly from GitHub — needs `git` on
-   your PATH and internet access.
-3. Check the Console for compile errors (should be none).
-4. With the backend running, press Play — a Socket.io client in the scene
-   connects and listens for `"spawn_vehicle"` events.
+Open `unity/Smartflow/` in Unity Hub (installs `6000.4.1f1`). The first launch
+resolves `SocketIOUnity` straight from GitHub, so `git` must be on your PATH.
+Start the backend, press Play.
 
 ---
 
-## Module Overview
+## Repository layout
 
-| Folder | Language | Role |
+| Path | Stack | Role |
 |---|---|---|
-| `ai-worker/` | Python 3.11 | Video file → YOLOv8 + ByteTrack → line-crossing counter → spawn-event JSON |
-| `backend/` | Node.js 20 | Validate → in-memory counters → WebSocket broadcast (`spawn` + `spawn_vehicle`) |
-| `unity/Smartflow/` | C# / Unity | Socket.io client → renders spawn events |
+| `ai-worker/` | Python 3.11 | Detect → track → count → measure → classify |
+| `backend/` | Node.js 20, TypeScript | Validate → count → broadcast over Socket.IO |
+| `unity/Smartflow/` | C#, Unity 6000.4 | 3D scene driven by the Intelligent Driver Model |
 | `docs/` | Markdown | Architecture, data contract, project status |
 
----
-
-## API Reference (Prototype)
-
-### `POST /api/ingest`
-Accepts one spawn-event JSON (see `docs/data-contract.md` §2b).
-- `200 OK { ok: true }` — accepted, counted, and broadcast
-- `400 Bad Request { error: reason }` — validation failed
-
-### `GET /api/stats`
-Returns in-memory vehicle counts by type × direction. `POST /api/stats/reset` zeroes them.
-
-### `GET /health`
-Returns `{ "status": "ok", "timestamp": ... }`.
-
-### `GET /`
-Live dev dashboard — connection status, `/api/stats` summary, raw `spawn` payload feed.
-
-### WebSocket
-Connect to `ws://localhost:3000`.
-- `"spawn"` — raw spawn-event, unmodified (same shape as the POST body)
-- `"spawn_vehicle"` — wrapped + trimmed for Unity: `{ event: "spawn_vehicle", data: { trackId, type, direction, cameraId, timestamp } }`
+Reusable measurement datasets live in `ai-worker/runs/` — each folder holds a config
+plus its recorded measurements, so verdicts can be recomputed without re-running YOLO.
 
 ---
 
-## Environment Variables
+## Design notes
 
-| File | Purpose |
-|---|---|
-| `backend/.env` | `PORT` (default 3000). MVP-only DB vars are commented out — unused in Prototype |
-| `ai-worker/configs/*.yaml` | Video path, model, zones, thresholds, `send_to_backend`, `backend_url` — not a `.env`, plain YAML. One self-contained file per camera angle; default `configs/event-2.yaml` |
+**Measurement is kept separate from judgement.** `traffic_state.jsonl` stores only what
+was measured; the verdict is attached at send time. Change a threshold and every past
+recording can be re-judged in under a second — no re-detection needed. This is what made
+the motorcycle-separation experiment possible on identical data.
 
-**Never commit `.env` files.**
+**Zones are drawn twice per lane.** A tight polygon around the counting line decides what
+gets counted; a longer one reaching further up the road measures density, so a queue
+backing up stays visible.
+
+```bash
+python -m src.calibrate --config configs/event-2.yaml --preview --save preview.png
+```
 
 ---
 
-## Docs
+## Status & limitations
 
-| File | Purpose |
-|---|---|
-| `docs/architecture.md` | System design, tech decisions |
-| `docs/data-contract.md` | JSON schema — source of truth for all modules |
-| `docs/project-status.md` | Milestones, blockers, session log |
-| `CLAUDE.md` | Rules and context for AI assistants |
-| `ai-worker/CLAUDE.md`, `backend/CLAUDE.md`, `unity/CLAUDE.md` | Module-specific context |
+Prototype from Project 1. Known boundaries, stated plainly:
+
+- Reads **video files**, not a live RTSP stream
+- Thresholds are **camera-specific** — a new angle needs recalibration
+- `high_density` never appeared in the test footage, so it stays unvalidated
+- Data flows **one way** only, which makes this a **digital shadow**, not a full twin
+- No environmental sensors yet, despite the project title
+
+Planned next: live CCTV ingest, homography for real-world coordinates, PM 2.5 overlay,
+and a feedback path from the virtual side back to the physical one.
+
+---
+
+<div align="center">
+
+Senior Project · Faculty of Information Technology, KMITL
+Advisor: Asst. Prof. Dr. Suwit Poomrittigul
+
+</div>
