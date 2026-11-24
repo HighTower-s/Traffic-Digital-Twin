@@ -2,7 +2,7 @@
 
 <img src="docs/figures/logo.svg" width="120" alt="Smart Flow logo" />
 
-# Smart Flow
+# Digital Twin Prototype System for Smart Mobility and Environment Simulation
 
 **A traffic digital twin for KMITL — turning CCTV footage the campus already has into a live 3D traffic model, without new sensors.**
 
@@ -14,7 +14,7 @@
 
 **English** · [ไทย](README.th.md)
 
-[▶ Demo video](https://www.youtube.com/watch?v=uMzWctl5njQ&feature=youtu.be)
+[▶ Demo](https://www.youtube.com/watch?v=uMzWctl5njQ&feature=youtu.be)
 
 </div>
 
@@ -108,17 +108,7 @@ both have zero flow.
 
 <p align="center"><img src="docs/figures/system-architecture.png" width="720" alt="System architecture" /></p>
 
-```
-video / CCTV
-     │
-     ▼
-┌─────────────┐  HTTP POST  ┌─────────────┐  Socket.IO  ┌──────────────┐
-│  AI Worker  │ ──────────▶ │   Backend   │ ──────────▶ │    Unity     │
-│   Python    │  JSON per   │   Node.js   │  broadcast  │  3D scene    │
-│ YOLOv8s +   │   vehicle   │  validate   │             │  + dashboard │
-│ ByteTrack   │  + per 20s  │  + relay    │             │              │
-└─────────────┘             └─────────────┘             └──────────────┘
-```
+
 
 ## Data pipeline
 
