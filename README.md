@@ -126,7 +126,7 @@ Two independent data streams:
 **The backend never alters payloads** — one documented exception trims the vehicle event
 to the five fields Unity actually renders.
 
-## Results
+## Example results
 
 Ground truth counted by hand, frame by frame, before looking at any system output.
 
@@ -221,20 +221,27 @@ backing up stays visible.
 python -m src.calibrate --config configs/event-2.yaml --preview --save preview.png
 ```
 
-## Status & limitations
+## What's next
 
-Prototype from Project 1. Known boundaries, stated plainly:
+**01 · Connect to the institute's real CCTV**
+Receive the RTSP stream directly from CCTV cameras, and run each module on separate
+machines/servers, to measure latency and stability under real network conditions.
 
-- Reads **video files**, not a live RTSP stream
-- Coordinate mapping (homography) is **not yet implemented** — positions are not yet
-  true 3D world coordinates
-- Thresholds are **camera-specific** — a new angle needs recalibration
-- `high_density` never appeared in the test footage, so it stays unvalidated
-- Data flows **one way** only, which makes this a **digital shadow**, not a full twin
-- No environmental sensors yet, despite the project title
+**02 · Expand the dataset and improve counting accuracy**
+Record more footage during rush hour, nighttime, and rain, especially to capture enough
+buses and trucks, then use it to fine-tune the model.
 
-Planned next: live CCTV ingest, homography for real-world coordinates, PM 2.5 overlay,
-and a feedback path from the virtual side back to the physical one.
+**03 · Map image coordinates to real-world ground coordinates**
+Apply a Homography transform from reference points with known real-world positions,
+to get vehicle position and speed in meters — so positions in the 3D scene match reality.
+
+**04 · Integrate environmental data**
+Connect Smart City sensors such as PM2.5 dust sensors, and overlay the readings on the
+3D scene.
+
+**05 · Upgrade to a full digital twin**
+Let the virtual side run What-If simulations ahead of time, and send recommendations or
+commands back to the real world.
 
 ---
 
