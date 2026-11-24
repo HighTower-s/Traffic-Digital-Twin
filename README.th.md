@@ -106,7 +106,7 @@
 
 ## System Architecture
 
-<p align="center"><img src="docs/figures/system-architecture.png" width="720" alt="สถาปัตยกรรมระบบ" /></p>
+<p align="center"><img src="docs/figures/system-architecture.jpg" width="720" alt="สถาปัตยกรรมระบบ" /></p>
 
 
 

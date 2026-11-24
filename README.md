@@ -108,7 +108,7 @@ both have zero flow.
 
 ## System architecture
 
-<p align="center"><img src="docs/figures/system-architecture.png" width="720" alt="System architecture" /></p>
+<p align="center"><img src="docs/figures/system-architecture.jpg" width="720" alt="System architecture" /></p>
 
 
 
