@@ -4,7 +4,7 @@
 
 # Smart Flow
 
-**A traffic digital twin that sees what vehicle counting alone misses — gridlock hidden behind weaving motorcycles.**
+**A traffic digital twin for KMITL — turning CCTV footage the campus already has into a live 3D traffic model, without new sensors.**
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-20_LTS-339933?logo=nodedotjs&logoColor=white)
@@ -14,16 +14,30 @@
 
 **English** · [ไทย](README.th.md)
 
+[▶ Demo video](https://www.youtube.com/watch?v=uMzWctl5njQ&feature=youtu.be)
+
 </div>
 
 ---
 
-## The problem
+## Background & significance
 
-On Thai roads, cars can be at a **complete standstill** while motorcycles keep filtering
-through the gaps. Count them together and the road still looks like it's flowing.
+King Mongkut's Institute of Technology Ladkrabang (KMITL) is pursuing a vision of becoming
+**The World Master of Innovation** under a Smart University concept — building an environment
+that supports quality learning and campus life, with the goal of turning the institute into a
+national-scale **Living Lab** (KMITL Smart City). Traffic management around the campus is one
+of the central pieces of that goal.
 
-Measured on real footage from Chalong Krung Road, KMITL:
+## Problem
+
+- KMITL already has **CCTV cameras** covering campus roads, but today they can only be used to
+  **watch** — there's no way to analyze or forecast traffic conditions, or simulate them in 3D.
+- There's no existing know-how on campus for building the link between the physical world and
+  a virtual one (a Metaverse-style digital twin).
+
+That gap shows up concretely at the vehicle-counting level, too. On Thai roads, cars can be at a
+**complete standstill** while motorcycles keep filtering through the gaps — count every vehicle
+the same way and the road still looks like it's flowing:
 
 | 20-second window | Cars crossed | Motorcycles crossed |
 |---|---|---|
@@ -32,38 +46,35 @@ Measured on real footage from Chalong Krung Road, KMITL:
 - **Counted together** → 24 veh/min → system says *Slow Moving* — road appears to flow
 - **Counted separately** → 6 veh/min → system says *Standstill* — matches reality
 
-Smart Flow separates motorcycle flow from the congestion decision, then renders the
-result as a live 3D scene.
+## Objectives
 
----
+- **Reuse what already exists** — work from the CCTV footage KMITL already has, with no new
+  sensor hardware, converting video into 3D vehicle positions.
+- **Build a Digital Twin** as a foundation to grow toward the Smart University vision.
+- **Design for PDPA compliance from the start** — store only aggregate traffic statistics;
+  never record faces or license plates, so no individual can be identified.
 
-## How it works
+## Scope
 
-```
-video / CCTV
-     │
-     ▼
-┌─────────────┐  HTTP POST  ┌─────────────┐  Socket.IO  ┌──────────────┐
-│  AI Worker  │ ──────────▶ │   Backend   │ ──────────▶ │    Unity     │
-│   Python    │  JSON per   │   Node.js   │  broadcast  │  3D scene    │
-│ YOLOv8s +   │   vehicle   │  validate   │             │  + dashboard │
-│ ByteTrack   │  + per 20s  │  + relay    │             │              │
-└─────────────┘             └─────────────┘             └──────────────┘
-```
+**Study area** — Chalong Krung Road, from the railway crossing to the motorway interchange.
 
-Two independent data streams:
+<p align="center"><img src="docs/figures/camera-detection.jpg" width="720" alt="Vehicle detection on Chalong Krung Road" /></p>
 
-| Stream | Trigger | Carries |
-|---|---|---|
-| `spawn-event` | each vehicle crossing the counting line | track id, type, direction |
-| `traffic-state` | every 20 seconds | occupancy, flow rates, traffic verdict |
+**Data handling**
 
-**The backend never alters payloads** — one documented exception trims the vehicle event
-to the five fields Unity actually renders.
+| Stage | What it does |
+|---|---|
+| Image Object Detection | Detects and tracks vehicles from the CCTV feed |
+| Coordinate Mapping | Maps 2D image coordinates to 3D world space so vehicles land correctly on the model |
+| Data Handling | Forwards structured data over a real-time API |
 
----
+**Display** — rendered as a live 3D model through a web browser (WebGL) and desktop (PC).
 
-## Traffic states
+## Key features
+
+- **Live Traffic Flow** — shows real vehicle movement and density on the 3D model.
+- **Traffic State Classification** — classifies and displays the traffic condition per time
+  window (e.g. *normal*, *high density*, *slow moving*, *standstill*).
 
 Judged per lane, every 20 seconds, from two measurements:
 
@@ -85,7 +96,43 @@ both have zero flow.
 > Thresholds are calibrated per camera angle and are **relative**, not veh/km —
 > they are not Level of Service (LOS) grades.
 
----
+## Tech stack
+
+| Module | Stack |
+|---|---|
+| `ai-worker/` | Python, YOLOv8s, ByteTrack |
+| `backend/` | Node.js, Socket.IO 4, Express, TypeScript |
+| `unity/` | Unity 6000.4.1f1, C# |
+
+## System architecture
+
+<p align="center"><img src="docs/figures/system-architecture.png" width="720" alt="System architecture" /></p>
+
+```
+video / CCTV
+     │
+     ▼
+┌─────────────┐  HTTP POST  ┌─────────────┐  Socket.IO  ┌──────────────┐
+│  AI Worker  │ ──────────▶ │   Backend   │ ──────────▶ │    Unity     │
+│   Python    │  JSON per   │   Node.js   │  broadcast  │  3D scene    │
+│ YOLOv8s +   │   vehicle   │  validate   │             │  + dashboard │
+│ ByteTrack   │  + per 20s  │  + relay    │             │              │
+└─────────────┘             └─────────────┘             └──────────────┘
+```
+
+## Data pipeline
+
+<p align="center"><img src="docs/figures/data-pipeline.png" width="720" alt="Data pipeline" /></p>
+
+Two independent data streams:
+
+| Stream | Trigger | Carries |
+|---|---|---|
+| `spawn-event` | each vehicle crossing the counting line | track id, type, direction |
+| `traffic-state` | every 20 seconds | occupancy, flow rates, traffic verdict |
+
+**The backend never alters payloads** — one documented exception trims the vehicle event
+to the five fields Unity actually renders.
 
 ## Results
 
@@ -110,8 +157,6 @@ Motorcycles — predicted to be the hardest class — scored highest, which is w
 motorcycles were folded back into the flow rate. Two of those were consecutive
 standstill windows being masked as *slow moving* — 40 seconds of real congestion
 the conventional method never sees.
-
----
 
 ## Quick start
 
@@ -157,8 +202,6 @@ Open `unity/Smartflow/` in Unity Hub (installs `6000.4.1f1`). The first launch
 resolves `SocketIOUnity` straight from GitHub, so `git` must be on your PATH.
 Start the backend, press Play.
 
----
-
 ## Repository layout
 
 | Path | Stack | Role |
@@ -170,8 +213,6 @@ Start the backend, press Play.
 
 Reusable measurement datasets live in `ai-worker/runs/` — each folder holds a config
 plus its recorded measurements, so verdicts can be recomputed without re-running YOLO.
-
----
 
 ## Design notes
 
@@ -188,13 +229,13 @@ backing up stays visible.
 python -m src.calibrate --config configs/event-2.yaml --preview --save preview.png
 ```
 
----
-
 ## Status & limitations
 
 Prototype from Project 1. Known boundaries, stated plainly:
 
 - Reads **video files**, not a live RTSP stream
+- Coordinate mapping (homography) is **not yet implemented** — positions are not yet
+  true 3D world coordinates
 - Thresholds are **camera-specific** — a new angle needs recalibration
 - `high_density` never appeared in the test footage, so it stays unvalidated
 - Data flows **one way** only, which makes this a **digital shadow**, not a full twin
@@ -209,5 +250,8 @@ and a feedback path from the virtual side back to the physical one.
 
 Senior Project · Faculty of Information Technology, KMITL
 Advisor: Asst. Prof. Dr. Suwit Poomrittigul
+
+**Pochara Sappasate** (นายพชร สรรพเศรษฐ) · 66070295 · pochara.sap@gmail.com
+**Thanakrit Kittisurin** (นายธนกฤต กิตติสุรินทร์) · 66070262 · 66070262@kmitl.ac.th
 
 </div>
