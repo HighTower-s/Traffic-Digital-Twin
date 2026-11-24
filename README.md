@@ -20,6 +20,8 @@
 
 ---
 
+[![DEMO](https://img.youtube.com/vi/uMzWctl5njQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=uMzWctl5njQ)
+
 ## Background & significance
 
 King Mongkut's Institute of Technology Ladkrabang (KMITL) is pursuing a vision of becoming
