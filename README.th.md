@@ -14,7 +14,7 @@
 
 [English](README.md) · **ไทย**
 
-[▶ วิดีโอสาธิต](https://www.youtube.com/watch?v=uMzWctl5njQ&feature=youtu.be)
+[▶ Demo](https://www.youtube.com/watch?v=uMzWctl5njQ&feature=youtu.be)
 
 </div>
 
@@ -108,17 +108,7 @@
 
 <p align="center"><img src="docs/figures/system-architecture.png" width="720" alt="สถาปัตยกรรมระบบ" /></p>
 
-```
-วิดีโอ / กล้องวงจรปิด
-     │
-     ▼
-┌─────────────┐  HTTP POST  ┌─────────────┐  Socket.IO  ┌──────────────┐
-│  AI Worker  │ ──────────▶ │   Backend   │ ──────────▶ │    Unity     │
-│   Python    │  ต่อ 1 คัน  │   Node.js   │   กระจาย    │  ฉาก 3 มิติ  │
-│ YOLOv8s +   │  + ทุก 20 ว.│  ตรวจสอบ    │             │  + dashboard │
-│ ByteTrack   │             │  + ส่งต่อ   │             │              │
-└─────────────┘             └─────────────┘             └──────────────┘
-```
+
 
 ## Data Pipeline
 
