@@ -2,9 +2,9 @@
 
 <img src="docs/figures/logo.svg" width="120" alt="โลโก้ Smart Flow" />
 
-# Smart Flow
+# Digital Twin for Smart Mobility and Environmental Management
 
-**แฝดดิจิทัลการจราจรที่มองเห็นสิ่งที่การนับรถเพียงอย่างเดียวมองไม่เห็น — รถติดสนิทที่ถูกบังด้วยมอเตอร์ไซค์ที่ยังมุดผ่านไปได้**
+**ระบบต้นแบบแฝดดิจิทัลสำหรับการจำลองการสัญจรและสภาพแวดล้อมอัจฉริยะ**
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-20_LTS-339933?logo=nodedotjs&logoColor=white)
