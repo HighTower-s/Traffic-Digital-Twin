@@ -14,13 +14,13 @@
 
 **English** · [ไทย](README.th.md)
 
-[▶ Demo](https://www.youtube.com/watch?v=uMzWctl5njQ&feature=youtu.be)
+[▶ Demo 1](https://www.youtube.com/watch?v=uMzWctl5njQ&feature=youtu.be) · [▶ Demo 2](https://www.youtube.com/watch?v=DB9AnPZCbm0&feature=youtu.be) · [▶ Demo 3 — Traffic State Classification](https://www.youtube.com/watch?v=MzMZoSQv2wk&feature=youtu.be)
 
 </div>
 
 ---
 
-[![DEMO](https://img.youtube.com/vi/uMzWctl5njQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=uMzWctl5njQ)
+[![DEMO 1](https://img.youtube.com/vi/uMzWctl5njQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=uMzWctl5njQ) [![DEMO 2](https://img.youtube.com/vi/DB9AnPZCbm0/maxresdefault.jpg)](https://www.youtube.com/watch?v=DB9AnPZCbm0) [![DEMO 3](https://img.youtube.com/vi/MzMZoSQv2wk/maxresdefault.jpg)](https://www.youtube.com/watch?v=MzMZoSQv2wk)
 
 ## Background & significance
 
@@ -77,6 +77,7 @@ the same way and the road still looks like it's flowing:
 - **Live Traffic Flow** — shows real vehicle movement and density on the 3D model.
 - **Traffic State Classification** — classifies and displays the traffic condition per time
   window (e.g. *normal*, *high density*, *slow moving*, *standstill*).
+  [▶ Watch the classification demo](https://www.youtube.com/watch?v=MzMZoSQv2wk&feature=youtu.be)
 
 Judged per lane, every 20 seconds, from two measurements:
 

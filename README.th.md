@@ -14,13 +14,13 @@
 
 [English](README.md) · **ไทย**
 
-[▶ Demo](https://www.youtube.com/watch?v=uMzWctl5njQ&feature=youtu.be)
+[▶ Demo 1](https://www.youtube.com/watch?v=uMzWctl5njQ&feature=youtu.be) · [▶ Demo 2](https://www.youtube.com/watch?v=DB9AnPZCbm0&feature=youtu.be) · [▶ Demo 3 — การตัดสินสภาพการจราจร](https://www.youtube.com/watch?v=MzMZoSQv2wk&feature=youtu.be)
 
 </div>
 
 ---
 
-[![DEMO](https://img.youtube.com/vi/uMzWctl5njQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=uMzWctl5njQ)
+[![DEMO 1](https://img.youtube.com/vi/uMzWctl5njQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=uMzWctl5njQ) [![DEMO 2](https://img.youtube.com/vi/DB9AnPZCbm0/maxresdefault.jpg)](https://www.youtube.com/watch?v=DB9AnPZCbm0) [![DEMO 3](https://img.youtube.com/vi/MzMZoSQv2wk/maxresdefault.jpg)](https://www.youtube.com/watch?v=MzMZoSQv2wk)
 
 ## ที่มาและความสำคัญ
 
@@ -75,6 +75,7 @@
 - **Live Traffic Flow** — แสดงการเคลื่อนที่และความหนาแน่นของยานพาหนะจริงบนโมเดล 3 มิติ
 - **Traffic State Classification** — จำแนกและแสดงสถานะสภาพการจราจรตามช่วงเวลา
   (เช่น คล่องตัว หนาแน่น เคลื่อนตัวช้า และติดขัด)
+  [▶ ดูคลิปสาธิตการตัดสินสภาพการจราจร](https://www.youtube.com/watch?v=MzMZoSQv2wk&feature=youtu.be)
 
 ตัดสินแยกรายฝั่งถนน ทุก 20 วินาที จากค่าที่วัดได้สองตัว
 
